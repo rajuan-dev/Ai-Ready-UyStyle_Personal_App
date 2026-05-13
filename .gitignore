@@ -24,10 +24,12 @@ DerivedData
 
 # Android/IntelliJ
 #
+android/
 build/
 .idea
 .gradle
 local.properties
+android/local.properties
 *.iml
 *.hprof
 .cxx/
