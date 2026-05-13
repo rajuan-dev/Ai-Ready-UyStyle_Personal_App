@@ -7,6 +7,7 @@ import {
     Dimensions,
     Image,
     ImageBackground,
+    ActivityIndicator,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -21,7 +22,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
             onFinish?.();
         }, 3000);
         return () => clearTimeout(timer);
-    }, [onFinish]);
+    }, []); // Run exactly once on mount
 
     return (
         <ImageBackground
@@ -31,7 +32,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         >
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-            {/* Logo */}
+            {/* Center Logo Section */}
             <View style={styles.centerContent}>
                 <Image
                     source={require('../../../assets/images/logo2.png')}
@@ -39,6 +40,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
                 />
                 {/* Tagline */}
                 <Text style={styles.tagline}>Your style, simplified.</Text>
+            </View>
+
+            {/* Bottom Loading Section */}
+            <View style={styles.bottomContent}>
+                <ActivityIndicator size="large" color="#fff" style={styles.loader} />
+                <Text style={styles.loadingText}>Loading...</Text>
             </View>
         </ImageBackground>
     );
@@ -54,12 +61,14 @@ const styles = StyleSheet.create({
         left: 0,
         zIndex: 999,
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between', // Distribute between center content and bottom loading
+        paddingBottom: 60,
     },
     centerContent: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        marginTop: 80, // offset for better centering
     },
     logo: {
         width: 290,
@@ -74,6 +83,19 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontFamily: 'InterMedium',
     },
+    bottomContent: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loader: {
+        marginBottom: 12,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#4A729E', // a slightly darker blue/grey for the loading text
+        fontWeight: '500',
+        fontFamily: 'InterMedium',
+    },
 });
 
-export default SplashScreen;
+export default SplashScreen;

@@ -47,12 +47,14 @@
 
 
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import SplashScreen from '../Screens/splash/Splashscreen';
 
 // Auth Screens
+import OnBoardingScreen     from '../Screens/Onbording/OnBordingScreen';
 import SignupScreen          from '../Screens/signup/SignupScreen';
 import SignInScreen          from '../Screens/signin/SignInScreen';
 
@@ -78,9 +80,10 @@ import Recentitems from '../Screens/Recentitems/Recentitems';
 
 const Stack = createNativeStackNavigator();
 
-//  Logged out → Signup first  →   Login link 
+//  Logged out → Onboarding first
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="onboarding" component={OnBoardingScreen} />
     <Stack.Screen name="signup"  component={SignupScreen} />
     <Stack.Screen name="signin"  component={SignInScreen} />
   </Stack.Navigator>
@@ -111,13 +114,11 @@ const AppStack = () => (
 
 const RootNavigator = () => {
   const { user, loading } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#0F1729" />
-      </View>
-    );
+  // Keep showing splash screen until minimum time elapsed (3s) OR user context finished loading
+  if (!splashDone || loading) {
+    return <SplashScreen onFinish={() => setSplashDone(true)} />;
   }
 
   return user ? <AppStack /> : <AuthStack />;

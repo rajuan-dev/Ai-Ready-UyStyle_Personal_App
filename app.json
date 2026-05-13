@@ -1,4 +1,10 @@
 {
-  "name": "Personal_stylist_app",
-  "displayName": "Personal_stylist_app"
+  "expo": {
+    "name": "Personal_stylist_app",
+    "slug": "personal-stylist-app",
+    "android": {
+      "package": "com.rajuan.dev.personal_stylist_app",
+      "googleServicesFile": "./android/app/google-services.json"
+    }
+  }
 }
