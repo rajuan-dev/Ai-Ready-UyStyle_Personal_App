@@ -129,6 +129,12 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
                             <X size={12} color="#fff" strokeWidth={3} />
                         </TouchableOpacity>
                     </Animated.View>
+
+                    <Animated.View style={[styles.viewOverlay, { opacity: xScale }]} pointerEvents="none">
+                        <View style={styles.viewBadge}>
+                            <Text style={styles.viewBadgeText}>View Look</Text>
+                        </View>
+                    </Animated.View>
                 </View>
                 <View style={styles.itemInfo}>
                     <Text style={styles.itemName} numberOfLines={1}>{item.title}</Text>

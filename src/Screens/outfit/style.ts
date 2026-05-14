@@ -272,4 +272,28 @@ export const styles = StyleSheet.create({
     },
 
     
+    viewOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(15, 23, 41, 0.4)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 5,
+    },
+    viewBadge: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    viewBadgeText: {
+        color: '#0F1729',
+        fontSize: 12,
+        fontFamily: 'InterBold',
+        fontWeight: '700',
+    },
 });
