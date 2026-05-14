@@ -33,14 +33,13 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
       await sendPasswordResetEmail(auth, email.trim());
       Alert.alert(
         'Success',
-        'If an account exists for this email, a password reset link has been sent.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        'A password reset link has been sent to your email. Check your inbox and spam folder, then come back to sign in.',
+        [{ text: 'OK' }]
       );
     } catch (error: any) {
       if (error.code === 'auth/invalid-email') {
         Alert.alert('Error', 'Please enter a valid email address');
       } else {
-        // Default to showing error
         Alert.alert('Error', error.message);
       }
     } finally {
