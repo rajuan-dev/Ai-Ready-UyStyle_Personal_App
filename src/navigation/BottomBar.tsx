@@ -1,11 +1,13 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CirclePlus, Grid3x3, House, Layers, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../Screens/Home/HomeScreen';
 import ClosetScreen from '../Screens/closet/ClosetScreen';
 import AdditemScreen from '../Screens/addItem/AdditemScreen';
 import OutfitScreen from '../Screens/outfit/OutfitScreen';
 import ProfileScreen from '../Screens/profile/ProfileScreen';
+import { getFloatingTabBarMetrics } from '../theme/layout';
 
 export type BottomTabParamList = {
     Home: undefined;
@@ -18,6 +20,9 @@ export type BottomTabParamList = {
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
 const BottomTabs = () => {
+    const insets = useSafeAreaInsets();
+    const tabBarMetrics = getFloatingTabBarMetrics(insets.bottom);
+
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
@@ -30,9 +35,9 @@ const BottomTabs = () => {
                     borderTopWidth: 0,
                     borderRadius: 16,
                     marginHorizontal: 20,
-                    marginBottom: 32,
-                    height: 70,
-                    paddingBottom: 10,
+                    marginBottom: tabBarMetrics.safeBottom,
+                    height: tabBarMetrics.height,
+                    paddingBottom: tabBarMetrics.paddingBottom,
                     paddingTop: 10,
                     position: 'absolute',
                 },

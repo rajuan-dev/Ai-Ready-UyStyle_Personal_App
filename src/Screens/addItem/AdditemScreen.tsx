@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -15,7 +15,8 @@ import {
     Keyboard,
     PermissionsAndroid,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import {
     ArrowUpFromLine,
     Camera,
@@ -24,6 +25,7 @@ import {
     Plus,
     Check,
     XIcon,
+    ChevronLeft,
 } from 'lucide-react-native';
 import { styles } from './style';
 import {
@@ -52,6 +54,7 @@ import {
     uploadBytesResumable,
     getDownloadURL,
 } from '@react-native-firebase/storage';
+import { getTabScreenBottomPadding } from '../../theme/layout';
 
 // ─── Default built-in categories ─────────────────────────────────────────────
 const DEFAULT_CATEGORIES = ['Tops', 'Bottoms', 'Shoes', 'Outerwear', 'Accessories', 'Others'];
@@ -200,14 +203,20 @@ const requestCameraPermission = async (): Promise<boolean> => {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const AdditemScreen = () => {
+    const route = useRoute<any>();
+    const navigation = useNavigation<any>();
+    const insets = useSafeAreaInsets();
+    const initialItem = route.params?.initialItem;
+    const returnScreen = route.params?.returnScreen;
+
     // ── Image state
-    const [imageUri,  setImageUri]  = useState<string | null>(null);
+    const [imageUri,  setImageUri]  = useState<string | null>(initialItem?.imageURL || null);
     const [imageFile, setImageFile] = useState<any>(null);
 
     // ── Form state
-    const [title,    setTitle]    = useState('');
-    const [category, setCategory] = useState('');
-    const [color,    setColor]    = useState('');
+    const [title,    setTitle]    = useState(initialItem?.title || '');
+    const [category, setCategory] = useState(initialItem?.category || '');
+    const [color,    setColor]    = useState(initialItem?.color || '');
 
     // ── Category state
     const [categories,      setCategories]      = useState<Category[]>([]);
@@ -225,6 +234,20 @@ const AdditemScreen = () => {
     const user = auth.currentUser;
 
     const { showSuccess, showError, showAlert, showConfirm } = useAppAlert();
+
+    const handleBack = useCallback(() => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+            return;
+        }
+
+        if (returnScreen === 'Closet') {
+            navigation.navigate('bottombar', { screen: 'Closet' });
+            return;
+        }
+
+        navigation.navigate('Add');
+    }, [navigation, returnScreen]);
 
     // ── Fetch categories from Firestore
     useEffect(() => {
@@ -384,20 +407,36 @@ const AdditemScreen = () => {
         if (!validate() || !user) return;
         setUploading(true);
         try {
-            const imageURL = await uploadImage(user.uid);
-            await addDoc(collection(db, 'closetItems'), {
-                userId: user.uid,
-                title:  title.trim(),
-                category,
-                color:  color.trim(),
-                imageURL,
-                createdAt: serverTimestamp(),
-            });
-            showSuccess('Success!', 'Item added to your closet.', () => {
-                setImageUri(null); setImageFile(null);
-                setTitle(''); setCategory(''); setColor('');
-                setUploadPct(0);
-            });
+            let finalImageURL = initialItem?.imageURL || '';
+            if (imageFile) {
+                finalImageURL = await uploadImage(user.uid);
+            }
+
+            if (initialItem) {
+                await updateDoc(doc(db, 'closetItems', initialItem.id), {
+                    title:  title.trim(),
+                    category,
+                    color:  color.trim(),
+                    imageURL: finalImageURL,
+                });
+                showSuccess('Updated!', 'Item details have been updated.', () => {
+                    handleBack();
+                });
+            } else {
+                await addDoc(collection(db, 'closetItems'), {
+                    userId: user.uid,
+                    title:  title.trim(),
+                    category,
+                    color:  color.trim(),
+                    imageURL: finalImageURL,
+                    createdAt: serverTimestamp(),
+                });
+                showSuccess('Success!', 'Item added to your closet.', () => {
+                    setImageUri(null); setImageFile(null);
+                    setTitle(''); setCategory(''); setColor('');
+                    setUploadPct(0);
+                });
+            }
         } catch (e: any) {
             showError('Error', e.message);
         } finally {
@@ -410,18 +449,33 @@ const AdditemScreen = () => {
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Add New Item</Text>
+            <View style={[styles.header, initialItem && { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+                {initialItem && (
+                    <TouchableOpacity 
+                        onPress={handleBack}
+                        activeOpacity={0.7}
+                        style={{
+                            padding: 4,
+                            marginLeft: -4,
+                        }}
+                    >
+                        <ChevronLeft size={24} color="#0F1729" />
+                    </TouchableOpacity>
+                )}
+                <Text style={styles.headerTitle}>{initialItem ? 'Edit Item' : 'Add New Item'}</Text>
             </View>
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    { paddingBottom: getTabScreenBottomPadding(insets.bottom) },
+                ]}
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.container}>
                     <Text style={styles.subtitle}>
-                        Upload a clothing piece to add it to your closet.
+                        {initialItem ? 'Update your clothing piece details below.' : 'Upload a clothing piece to add it to your closet.'}
                     </Text>
 
                     {/* ── Image Preview / Upload Box ── */}
@@ -605,7 +659,7 @@ const AdditemScreen = () => {
                                         )}
                                     </View>
                                 ) : (
-                                    <Text style={styles.saveBtnText}>Add to Closet</Text>
+                                    <Text style={styles.saveBtnText}>{initialItem ? 'Save Changes' : 'Add to Closet'}</Text>
                                 )}
                             </TouchableOpacity>
                         </View>

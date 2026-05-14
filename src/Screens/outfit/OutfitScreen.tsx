@@ -8,11 +8,10 @@ import {
     StatusBar,
     Animated,
     FlatList,
-    Alert,
     ActivityIndicator,
     TouchableWithoutFeedback,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Flame, X } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppAlert } from '../../context/AlertContext';
@@ -38,6 +37,7 @@ import {
     DocumentData,
 } from '@react-native-firebase/firestore';
 import { styles } from './style';
+import { getTabScreenBottomPadding } from '../../theme/layout';
 
 // --- Types ---
 type OutfitItem = {
@@ -159,6 +159,7 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
 
 const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = ({ onOutfitPress }) => {
     const navigation = useNavigation<any>();
+    const insets = useSafeAreaInsets();
     const db = getFirestore(getApp());
     const user = getAuth().currentUser;
 
@@ -328,7 +329,10 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                         keyExtractor={(item) => item.id}
                         numColumns={2}
                         columnWrapperStyle={styles.columnWrapper}
-                        contentContainerStyle={styles.listContent}
+                        contentContainerStyle={[
+                            styles.listContent,
+                            { paddingBottom: getTabScreenBottomPadding(insets.bottom) },
+                        ]}
                         onEndReached={loadMore}
                         onEndReachedThreshold={0.5}
                         renderItem={({ item }) => (

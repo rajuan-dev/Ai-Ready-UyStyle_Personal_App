@@ -48,7 +48,6 @@
 
 
 import React, { useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import SplashScreen from '../Screens/splash/Splashscreen';
@@ -111,7 +110,7 @@ const AppStack = () => (
     <Stack.Screen name="FavoriteLooksScreen"component={FavoriteLooksScreen} />
     <Stack.Screen name="Recentitems"component={Recentitems} />
     <Stack.Screen name="outfits"component={AllitemsScreen} />
-    <Stack.Screen name="Add"component={AdditemScreen} />
+    <Stack.Screen name="AddItemEditor" component={AdditemScreen} />
 
   </Stack.Navigator>
 );

@@ -70,18 +70,13 @@ export const styles = StyleSheet.create({
         color: '#fff',
     },
 
-    // ─── FlatList grid 
-    listContent: {
-        paddingHorizontal: H_PAD,
-        paddingTop: 4,
-    },
     columnWrapper: {
-        gap: CARD_GAP,
-        marginBottom: CARD_GAP,
+        justifyContent: 'space-between',
+        paddingHorizontal: H_PAD,
     },
-    listFooter: {
-        paddingVertical: 20,
-        alignItems: 'center',
+    listContent: {
+        paddingTop: 12,
+        paddingBottom: 140,
     },
 
     // ─── Outfit card ────

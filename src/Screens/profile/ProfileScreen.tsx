@@ -10,7 +10,7 @@ import {
     ActivityIndicator,
     RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Heart, PenLine, Shirt, User } from 'lucide-react-native';
 import { styles } from './style';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -28,6 +28,7 @@ import {
     limit,
     orderBy,
 } from '@react-native-firebase/firestore';
+import { getTabScreenBottomPadding } from '../../theme/layout';
 
 // ── Firebase refs (singleton — created once, not every render) ──
 const app  = getApp();
@@ -57,6 +58,7 @@ const menuItems = [
 
 const ProfileScreen = () => {
     const navigation = useNavigation<any>();
+    const insets = useSafeAreaInsets();
 
     const [fullName,      setFullName]      = useState(profileCache?.fullName ?? '');
     const [photoURL,      setPhotoURL]      = useState<string | null>(profileCache?.photoURL ?? null);
@@ -224,7 +226,10 @@ const ProfileScreen = () => {
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <ScrollView
                 style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    { paddingBottom: getTabScreenBottomPadding(insets.bottom) },
+                ]}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl

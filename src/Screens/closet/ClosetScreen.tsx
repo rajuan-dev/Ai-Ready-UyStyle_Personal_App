@@ -11,6 +11,7 @@ import {
     View,
     Text,
     FlatList,
+    Pressable,
     TouchableOpacity,
     Image,
     TextInput,
@@ -20,15 +21,18 @@ import {
     Dimensions,
     Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     Grid3x3,
     SlidersHorizontal,
     Search,
     ShoppingBag,
     Heart,
+    X,
+    Pencil,
 } from 'lucide-react-native';
 import { styles } from './style';
+import { useNavigation } from '@react-navigation/native';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
 import {
@@ -44,6 +48,7 @@ import {
     increment,
     updateDoc,
 } from '@react-native-firebase/firestore';
+import { getTabScreenBottomPadding } from '../../theme/layout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PAGE_SIZE  = 10;
@@ -105,12 +110,17 @@ interface ItemCardProps {
     item:     ClosetItem;
     liked:    boolean;
     onToggle: (id: string) => void;
+    onPress:  (item: ClosetItem) => void;
 }
 
-const ItemCard: React.FC<ItemCardProps> = React.memo(({ item, liked, onToggle }) => {
+const ItemCard: React.FC<ItemCardProps> = React.memo(({ item, liked, onToggle, onPress }) => {
     const count = item.likeCount ?? 0;
     return (
-        <TouchableOpacity style={cardStyles.card} activeOpacity={0.88}>
+        <TouchableOpacity 
+            style={cardStyles.card} 
+            activeOpacity={0.88}
+            onPress={() => onPress(item)}
+        >
             <View style={cardStyles.imageWrapper}>
                 <Image
                     source={{ uri: item.imageURL }}
@@ -139,6 +149,7 @@ const ItemCard: React.FC<ItemCardProps> = React.memo(({ item, liked, onToggle })
 
 // ─── ClosetScreen ─────────────────────────────────────────────────────────────
 const ClosetScreen = () => {
+    const insets = useSafeAreaInsets();
 
     const [items,            setItems]            = useState<ClosetItem[]>([]);
     const [likedIds,         setLikedIds]         = useState<Set<string>>(new Set());
@@ -148,6 +159,9 @@ const ClosetScreen = () => {
     const [pageSize,         setPageSize]         = useState(PAGE_SIZE);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [searchText,       setSearchText]       = useState('');
+    const [selectedItem,     setSelectedItem]     = useState<ClosetItem | null>(null);
+
+    const navigation = useNavigation<any>();
 
     const app  = getApp();
     const auth = getAuth(app);
@@ -190,7 +204,7 @@ const ClosetScreen = () => {
         );
 
         return () => unsub();
-    }, [user, pageSize]);
+    }, [db, user, pageSize]);
 
     // ── 2. Real-time likes listener ───────────────────────────────────────────
     useEffect(() => {
@@ -200,7 +214,7 @@ const ClosetScreen = () => {
             snap => setLikedIds(new Set(snap.docs.map(d => d.data().itemId as string))),
         );
         return () => unsub();
-    }, [user]);
+    }, [db, user]);
 
 
     const categoryTabs = useMemo(() => {
@@ -215,7 +229,7 @@ const ClosetScreen = () => {
         if (selectedCategory !== 'All' && !categoryTabs.includes(selectedCategory)) {
             setSelectedCategory('All');
         }
-    }, [categoryTabs]);
+    }, [categoryTabs, selectedCategory]);
 
     // ── 4. Client-side filter 
     const filteredItems = useMemo(() =>
@@ -283,7 +297,12 @@ const ClosetScreen = () => {
     // ── Render helpers
     const renderItem = useCallback(
         ({ item }: { item: ClosetItem }) => (
-            <ItemCard item={item} liked={likedIds.has(item.id)} onToggle={handleToggleLike} />
+            <ItemCard 
+                item={item} 
+                liked={likedIds.has(item.id)} 
+                onToggle={handleToggleLike} 
+                onPress={setSelectedItem}
+            />
         ),
         [likedIds, handleToggleLike],
     );
@@ -399,6 +418,7 @@ const ClosetScreen = () => {
                 columnWrapperStyle={gridStyles.columnWrapper}
                 contentContainerStyle={[
                     gridStyles.content,
+                    { paddingBottom: getTabScreenBottomPadding(insets.bottom) },
                     filteredItems.length === 0 && gridStyles.emptyContent,
                 ]}
                 showsVerticalScrollIndicator={false}
@@ -414,9 +434,165 @@ const ClosetScreen = () => {
                 windowSize={10}
                 initialNumToRender={10}
             />
+
+            {selectedItem && (
+                <View style={modalStyles.overlay}>
+                    <Pressable
+                        style={StyleSheet.absoluteFill}
+                        onPress={() => setSelectedItem(null)}
+                    />
+                    <Animated.View style={modalStyles.content}>
+                        <TouchableOpacity
+                            style={modalStyles.closeBtn}
+                            onPress={() => setSelectedItem(null)}
+                        >
+                            <X size={20} color="#0F1729" />
+                        </TouchableOpacity>
+
+                        <Image
+                            source={{ uri: selectedItem.imageURL }}
+                            style={modalStyles.image}
+                            resizeMode="cover"
+                        />
+                        <View style={modalStyles.info}>
+                            <Text style={modalStyles.title}>{selectedItem.title}</Text>
+                            <Text style={modalStyles.meta}>
+                                {selectedItem.category} • {selectedItem.color}
+                            </Text>
+
+                            <View style={modalStyles.stats}>
+                                <Heart size={16} color="#ef4444" fill="#ef4444" />
+                                <Text style={modalStyles.statsText}>
+                                    {selectedItem.likeCount || 0} Likes
+                                </Text>
+                            </View>
+
+                            <View style={modalStyles.actionRow}>
+                                        <TouchableOpacity
+                                            style={modalStyles.editBtn}
+                                            onPress={() => {
+                                                const item = selectedItem;
+                                                setSelectedItem(null);
+                                                navigation.getParent()?.navigate('AddItemEditor', {
+                                                    initialItem: item,
+                                                });
+                                            }}
+                                        >
+                                    <Pencil size={16} color="#0F1729" />
+                                    <Text style={modalStyles.editBtnText}>Edit Details</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={modalStyles.outfitBtn}
+                                    onPress={() => {
+                                        const item = selectedItem;
+                                        setSelectedItem(null);
+                                        navigation.navigate('combine', { initialItem: item });
+                                    }}
+                                >
+                                    <Text style={modalStyles.outfitBtnText}>Create Outfit</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Animated.View>
+                </View>
+            )}
         </SafeAreaView>
     );
 };
+
+const modalStyles = StyleSheet.create({
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+        zIndex: 1000,
+        elevation: 1000,
+    },
+    content: {
+        width: '100%',
+        maxWidth: 420,
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    closeBtn: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        zIndex: 10,
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        borderRadius: 20,
+        padding: 8,
+    },
+    image: {
+        width: '100%',
+        height: 280,
+        backgroundColor: '#f1f5f9',
+    },
+    info: {
+        padding: 24,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#0F1729',
+        marginBottom: 4,
+    },
+    meta: {
+        fontSize: 14,
+        color: '#64748B',
+        marginBottom: 16,
+    },
+    stats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 20,
+    },
+    statsText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0F1729',
+    },
+    actionRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    editBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        height: 52,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        backgroundColor: '#F8FAFC',
+    },
+    editBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0F1729',
+    },
+    outfitBtn: {
+        flex: 1,
+        height: 52,
+        borderRadius: 14,
+        backgroundColor: '#0F1729',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    outfitBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#fff',
+    },
+});
 
 export default ClosetScreen;
 
@@ -488,7 +664,7 @@ const likeStyles = StyleSheet.create({
 
 const gridStyles = StyleSheet.create({
     columnWrapper: { justifyContent: 'space-between', paddingHorizontal: 16 },
-    content:       { paddingTop: 12, paddingBottom: 24 },
+    content:       { paddingTop: 12, paddingBottom: 140 },
     emptyContent:  { flexGrow: 1 },
 });
 

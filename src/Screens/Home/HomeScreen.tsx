@@ -14,7 +14,7 @@ import {
     StyleSheet,
     Dimensions, RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronRight, Search, Sparkles, Zap, X, User } from 'lucide-react-native';
 import { styles } from './style';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +31,7 @@ import {
     orderBy,
     limit,
 } from '@react-native-firebase/firestore';
+import { getTabScreenBottomPadding } from '../../theme/layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -49,6 +50,7 @@ type RecentOutfit = {
 };
 
 const HomeScreen = () => {
+    const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'wear' | 'build'>('wear');
     const navigation = useNavigation<any>();
 
@@ -326,7 +328,7 @@ const HomeScreen = () => {
                                 <TouchableOpacity
                                     style={localStyles.searchCard}
                                     activeOpacity={0.85}
-                                    onPress={() => { toggleSearch(); navigation.navigate('closet'); }}
+                                    onPress={() => { toggleSearch(); navigation.navigate('Closet'); }}
                                 >
                                     {item.imageURL
                                         ? <Image source={{ uri: item.imageURL }} style={localStyles.searchCardImg} />
@@ -345,7 +347,10 @@ const HomeScreen = () => {
             {!(searchVisible && searchQuery.trim() !== '') && (
                 <ScrollView
                     style={styles.scroll}
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        { paddingBottom: getTabScreenBottomPadding(insets.bottom) },
+                    ]}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl
