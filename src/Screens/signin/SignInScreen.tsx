@@ -79,15 +79,7 @@ const SignInScreen = ({ navigation }: any) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-          >
-            <ChevronLeft color={'#000'} />
-          </TouchableOpacity>
-
-          <View style={styles.header}>
+          <View style={[styles.header, { marginTop: 48 }]}>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>Sign in to access your closet and saved outfits.</Text>
           </View>
