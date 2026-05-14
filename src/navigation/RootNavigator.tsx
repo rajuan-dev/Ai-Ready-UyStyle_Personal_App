@@ -57,6 +57,7 @@ import SplashScreen from '../Screens/splash/Splashscreen';
 import OnBoardingScreen     from '../Screens/Onbording/OnBordingScreen';
 import SignupScreen          from '../Screens/signup/SignupScreen';
 import SignInScreen          from '../Screens/signin/SignInScreen';
+import ForgotPasswordScreen  from '../Screens/signin/ForgotPasswordScreen';
 
 // App Screens
 import BottomBar             from './BottomBar';
@@ -86,6 +87,7 @@ const AuthStack = () => (
     <Stack.Screen name="onboarding" component={OnBoardingScreen} />
     <Stack.Screen name="signup"  component={SignupScreen} />
     <Stack.Screen name="signin"  component={SignInScreen} />
+    <Stack.Screen name="forgotPassword" component={ForgotPasswordScreen} />
   </Stack.Navigator>
 );
 

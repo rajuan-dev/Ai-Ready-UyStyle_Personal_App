@@ -154,4 +154,12 @@ alreadyAccountLink: {
   textDecorationLine: 'underline',
   color: '#1D4ED8',
 },
+forgotPasswordText: {
+  fontSize: 14,
+  fontFamily: 'InterMedium',
+  fontWeight: '500',
+  color: '#2869BD',
+  textAlign: 'right',
+  marginTop: 12,
+},
 });

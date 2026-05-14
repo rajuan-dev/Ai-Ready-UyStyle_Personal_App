@@ -12,6 +12,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../signup/style';
@@ -69,7 +70,10 @@ const SignInScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -126,6 +130,12 @@ const SignInScreen = ({ navigation }: any) => {
                   <EyeIcon visible={showPassword} />
                 </TouchableOpacity>
               </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('forgotPassword')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
