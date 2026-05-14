@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Personal_stylist_app",
-    "slug": "personal-stylist-app",
+    "name": "Ustyle",
+    "slug": "ustyle",
     "icon": "./assets/icon.png",
     "android": {
       "package": "com.rajuan.dev.personal_stylist_app",
