@@ -28,6 +28,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
     checkAccount();
 
+    // TEMPORARY MOCK: Bypassing Firebase because google-services.json is missing
+    // This allows you to test the UI and Onboarding screens without crashing
+    const timer = setTimeout(() => {
+      setUser(null); // Force user to be null to show Onboarding
+      setLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+    
+    /* 
+    // ORIGINAL FIREBASE CODE (Uncomment when google-services.json is added):
     const auth        = getAuth(getApp());
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
@@ -42,6 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return unsubscribe;
+    */
   }, []);
 
   return (

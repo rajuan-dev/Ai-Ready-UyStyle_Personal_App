@@ -54,7 +54,7 @@ export default function OnBoardingScreen() {
                 animated: true,
             });
         } else {
-            navigation.replace('signup');
+            navigation.replace('signin');
         }
     };
 
@@ -187,10 +187,10 @@ export default function OnBoardingScreen() {
                 {currentIndex < STEPS.length - 1 ? (
                     <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => navigation.replace('signin')}
+                        onPress={() => navigation.replace('signup')}
                         style={styles.loginContainer}
                     >
-                        <Text style={styles.loginText}>I Already Have An Account</Text>
+                        <Text style={styles.loginText}>Don't have an account? Sign up</Text>
                     </TouchableOpacity>
                 ) : (
                     // Placeholder to maintain sheet layout height consistency

@@ -10,7 +10,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get('screen');
 
 interface SplashScreenProps {
     onFinish?: () => void;

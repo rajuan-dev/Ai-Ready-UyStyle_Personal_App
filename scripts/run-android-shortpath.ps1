@@ -6,43 +6,46 @@ param(
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$driveRoot = Split-Path -Qualifier $projectRoot
-$junctionCandidates = @("uapp", "uystyle-app", "expo-app-short")
-$shortProjectRoot = $null
-$createdJunction = $false
+$androidDir = Join-Path $projectRoot "android"
+$sdkCandidates = @(
+    $env:ANDROID_HOME,
+    $env:ANDROID_SDK_ROOT,
+    (Join-Path $env:LOCALAPPDATA "Android\\Sdk"),
+    (Join-Path $env:USERPROFILE "AppData\\Local\\Android\\Sdk"),
+    "C:\\Android\\Sdk"
+) | Where-Object { $_ }
 
-foreach ($name in $junctionCandidates) {
-    $candidatePath = Join-Path $driveRoot $name
-
-    if (Test-Path $candidatePath) {
-        $item = Get-Item $candidatePath -Force
-        $target = $item.Target
-
-        if ($item.LinkType -eq "Junction" -and $target -and $target[0] -ieq $projectRoot) {
-            $shortProjectRoot = $candidatePath
-            break
-        }
-
-        continue
-    }
-
-    cmd /c "mklink /J `"$candidatePath`" `"$projectRoot`""
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to create a temporary junction for $projectRoot"
-    }
-
-    $shortProjectRoot = $candidatePath
-    $createdJunction = $true
-    break
+function Convert-ToGradleSdkDir([string]$Path) {
+    return $Path.Replace("\", "\\").Replace(":", "\:")
 }
 
-if (-not $shortProjectRoot) {
-    throw "No short-path junction location was available. Checked: $($junctionCandidates -join ', ')"
+function Initialize-AndroidSdk {
+    $sdkPath = $sdkCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if (-not $sdkPath) {
+        throw "Android SDK not found. Set ANDROID_HOME or install the SDK under %LOCALAPPDATA%\\Android\\Sdk."
+    }
+
+    $resolvedSdkPath = (Resolve-Path $sdkPath).Path
+    $env:ANDROID_HOME = $resolvedSdkPath
+    $env:ANDROID_SDK_ROOT = $resolvedSdkPath
+
+    $localPropertiesPath = Join-Path $androidDir "local.properties"
+    $expectedLocalProperties = "sdk.dir=$(Convert-ToGradleSdkDir $resolvedSdkPath)"
+    $currentLocalProperties = if (Test-Path $localPropertiesPath) {
+        (Get-Content $localPropertiesPath -Raw).Trim()
+    } else {
+        $null
+    }
+
+    if ($currentLocalProperties -ne $expectedLocalProperties) {
+        Set-Content -Path $localPropertiesPath -Value $expectedLocalProperties -Encoding ascii
+    }
 }
 
 try {
-    Push-Location $shortProjectRoot
+    Initialize-AndroidSdk
+    Push-Location $projectRoot
     & npx expo run:android @ExpoArgs
 
     if ($LASTEXITCODE -ne 0) {
@@ -50,8 +53,4 @@ try {
     }
 } finally {
     Pop-Location
-
-    if ($createdJunction) {
-        cmd /c "rmdir `"$shortProjectRoot`"" | Out-Null
-    }
 }

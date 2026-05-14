@@ -2,9 +2,23 @@
   "expo": {
     "name": "Personal_stylist_app",
     "slug": "personal-stylist-app",
+    "icon": "./assets/icon.png",
     "android": {
       "package": "com.rajuan.dev.personal_stylist_app",
-      "googleServicesFile": "./android/app/google-services.json"
+      "googleServicesFile": "./android/app/google-services.json",
+      "softwareKeyboardLayoutMode": "pan",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "androidNavigationBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#00000000",
+      "visible": "sticky-immersive"
+    },
+    "ios": {
+      "icon": "./assets/icon.png"
     }
   }
 }
