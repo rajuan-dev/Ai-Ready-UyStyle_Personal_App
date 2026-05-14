@@ -273,6 +273,7 @@ import {
     uploadBytesResumable,
     getDownloadURL,
 } from '@react-native-firebase/storage';
+import { invalidateProfileCache } from './ProfileScreen';
 
 // ── Validation ───────────────────────────────────────────
 const isValidEmail = (val: string) =>
@@ -434,6 +435,7 @@ const ProfileEditScreen = ({ navigation }: any) => {
                 photoURL,
             });
 
+            invalidateProfileCache(); // Force refresh on profile screen
             Alert.alert('Success', 'Profile updated successfully!', [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);

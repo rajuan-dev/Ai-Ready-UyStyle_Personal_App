@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -23,7 +23,28 @@ import {
     query,
     where,
     getCountFromServer,
+    getDocs,
+    limit,
+    orderBy,
 } from '@react-native-firebase/firestore';
+
+// ── Firebase refs (singleton — created once, not every render) ──
+const app  = getApp();
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── In-memory cache so tab switches are instant ──
+let profileCache: {
+    fullName: string;
+    photoURL: string | null;
+    closetCount: number;
+    outfitCount: number;
+    likesCount: number;
+    likedPreviews: { id: string; imageURL: string }[];
+    timestamp: number;
+} | null = null;
+
+const CACHE_TTL = 60_000; // 1 minute — skip network if fresh
 
 const menuItems = [
     { label: 'Notifications',    danger: false, screen: 'notification'    },
@@ -32,6 +53,7 @@ const menuItems = [
     { label: 'Help',             danger: false, screen: 'help'            },
     { label: 'Logout',           danger: true,  screen: null              },
 ];
+
 const favoriteLooks = [
     'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=300',
     'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300',
@@ -40,79 +62,115 @@ const favoriteLooks = [
 const ProfileScreen = () => {
     const navigation = useNavigation<any>();
 
-    const [fullName,      setFullName]      = useState('');
-    const [photoURL,      setPhotoURL]      = useState<string | null>(null);
-    const [loading,       setLoading]       = useState(true);
+    const [fullName,      setFullName]      = useState(profileCache?.fullName ?? '');
+    const [photoURL,      setPhotoURL]      = useState<string | null>(profileCache?.photoURL ?? null);
+    const [loading,       setLoading]       = useState(!profileCache);
 
-    const [closetCount,   setClosetCount]   = useState(0);
-    const [outfitCount,   setOutfitCount]   = useState(0);
-    const [likesCount,    setLikesCount]    = useState(0);
-    const [countsLoading, setCountsLoading] = useState(true);
+    const [closetCount,   setClosetCount]   = useState(profileCache?.closetCount ?? 0);
+    const [outfitCount,   setOutfitCount]   = useState(profileCache?.outfitCount ?? 0);
+    const [likesCount,    setLikesCount]    = useState(profileCache?.likesCount ?? 0);
+    const [countsLoading, setCountsLoading] = useState(!profileCache);
 
+    const [likedPreviews, setLikedPreviews] = useState<{ id: string; imageURL: string }[]>(
+        profileCache?.likedPreviews ?? []
+    );
 
-    const [likedPreviews, setLikedPreviews] = useState<{ id: string; imageURL: string }[]>([]);
-
-    const app  = getApp();
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
-    const user = auth.currentUser;
+    // Prevent duplicate fetches if focus fires rapidly
+    const fetchingRef = useRef(false);
 
     useFocusEffect(
         useCallback(() => {
+            const user = auth.currentUser;
             if (!user) return;
+
+            // If cache is fresh, skip network entirely
+            if (profileCache && Date.now() - profileCache.timestamp < CACHE_TTL) {
+                // Just apply cached values (already set as initial state, but cover state resets)
+                setFullName(profileCache.fullName);
+                setPhotoURL(profileCache.photoURL);
+                setClosetCount(profileCache.closetCount);
+                setOutfitCount(profileCache.outfitCount);
+                setLikesCount(profileCache.likesCount);
+                setLikedPreviews(profileCache.likedPreviews);
+                setLoading(false);
+                setCountsLoading(false);
+                return;
+            }
+
+            if (fetchingRef.current) return;
+            fetchingRef.current = true;
+
             let cancelled = false;
+            const uid = user.uid;
+
+            // If we have stale cache, show it instantly while refreshing in background
+            if (profileCache) {
+                setLoading(false);
+                setCountsLoading(false);
+            }
 
             const fetchAll = async () => {
-                setLoading(true);
-                setCountsLoading(true);
-
-                const uid = user.uid;
-
                 try {
-                    // ── User profile doc ─────────────────────────────
-                    const snap = await getDoc(doc(db, 'users', uid));
-                    if (!cancelled && snap.exists()) {
-                        const data = snap.data();
-                        setFullName(data?.fullName || '');
-                        setPhotoURL(data?.photoURL || null);
+                    // ── Run ALL queries in parallel ──────────────────
+                    const [profileSnap, closetSnap, outfitsSnap, likesSnap, previewSnap] =
+                        await Promise.all([
+                            getDoc(doc(db, 'users', uid)),
+                            getCountFromServer(
+                                query(collection(db, 'closetItems'), where('userId', '==', uid))
+                            ),
+                            getCountFromServer(
+                                query(collection(db, 'outfits'), where('userId', '==', uid))
+                            ),
+                            getCountFromServer(
+                                query(collection(db, 'likes'), where('userId', '==', uid))
+                            ),
+                            getDocs(
+                                query(
+                                    collection(db, 'likes'),
+                                    where('userId', '==', uid),
+                                    orderBy('createdAt', 'desc'),
+                                    limit(2)
+                                )
+                            ),
+                        ]);
+
+                    if (cancelled) return;
+
+                    // ── Profile doc ──
+                    let name = '';
+                    let photo: string | null = null;
+                    if (profileSnap.exists()) {
+                        const data = profileSnap.data();
+                        name  = data?.fullName || '';
+                        photo = data?.photoURL || null;
                     }
+                    setFullName(name);
+                    setPhotoURL(photo);
 
-                    // ── Root-level collections, filtered by userId ───
-            
-                    const closetQuery  = query(collection(db, 'closetItems'), where('userId', '==', uid));
-                    const outfitsQuery = query(collection(db, 'outfits'),     where('userId', '==', uid));
-                    const likesQuery   = query(collection(db, 'likes'),       where('userId', '==', uid));
+                    // ── Counts ──
+                    const cCloset  = closetSnap.data().count;
+                    const cOutfits = outfitsSnap.data().count;
+                    const cLikes   = likesSnap.data().count;
+                    setClosetCount(cCloset);
+                    setOutfitCount(cOutfits);
+                    setLikesCount(cLikes);
 
-                    const [closetSnap, outfitsSnap, likesSnap] = await Promise.all([
-                        getCountFromServer(closetQuery),
-                        getCountFromServer(outfitsQuery),
-                        getCountFromServer(likesQuery),
-                    ]);
+                    // ── Liked previews ──
+                    const previews = previewSnap.docs
+                        .map(d => ({ id: d.id, imageURL: d.data().imageURL || '' }))
+                        .filter(p => p.imageURL !== '');
+                    setLikedPreviews(previews);
 
-                    if (!cancelled) {
-                        setClosetCount(closetSnap.data().count);
-                        setOutfitCount(outfitsSnap.data().count);
-                        setLikesCount(likesSnap.data().count);
-                    }
-
-                    // ── Liked items preview (imageURL) for Favorite Looks ──
-                   
-                    const { getDocs, limit, orderBy } = await import('@react-native-firebase/firestore');
-                    const previewQuery = query(
-                        collection(db, 'likes'),
-                        where('userId', '==', uid),
-                        orderBy('createdAt', 'desc'),
-                        limit(2)
-                    );
-                    const previewSnap = await getDocs(previewQuery);
-                    if (!cancelled) {
-                        const previews = previewSnap.docs.map(d => ({
-                            id: d.id,
-                            imageURL: d.data().imageURL || '',
-                        })).filter(p => p.imageURL !== '');
-                        setLikedPreviews(previews);
-                    }
-
+                    // ── Update cache ──
+                    profileCache = {
+                        fullName: name,
+                        photoURL: photo,
+                        closetCount: cCloset,
+                        outfitCount: cOutfits,
+                        likesCount: cLikes,
+                        likedPreviews: previews,
+                        timestamp: Date.now(),
+                    };
                 } catch (e: any) {
                     console.log('[Profile] fetch error:', e?.message || e);
                 } finally {
@@ -120,11 +178,12 @@ const ProfileScreen = () => {
                         setLoading(false);
                         setCountsLoading(false);
                     }
+                    fetchingRef.current = false;
                 }
             };
 
             fetchAll();
-            return () => { cancelled = true; };
+            return () => { cancelled = true; fetchingRef.current = false; };
         }, [])
     );
 
@@ -141,7 +200,10 @@ const ProfileScreen = () => {
                 text: 'Logout',
                 style: 'destructive',
                 onPress: async () => {
-                    try { await signOut(getAuth(getApp())); }
+                    try {
+                        profileCache = null; // Clear cache on logout
+                        await signOut(auth);
+                    }
                     catch (error: any) { Alert.alert('Error', error.message); }
                 },
             },
@@ -272,3 +334,6 @@ const ProfileScreen = () => {
 };
 
 export default ProfileScreen;
+
+// Export cache invalidator so ProfileEditScreen can clear it after saving
+export const invalidateProfileCache = () => { profileCache = null; };

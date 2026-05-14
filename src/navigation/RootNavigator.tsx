@@ -81,9 +81,11 @@ import Recentitems from '../Screens/Recentitems/Recentitems';
 
 const Stack = createNativeStackNavigator();
 
-//  Logged out → Onboarding first
-const AuthStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+// Logged out — first-time users see onboarding, returning users see sign-in
+const AuthStack = ({ hasAccount }: { hasAccount: boolean }) => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}
+    initialRouteName={hasAccount ? 'signin' : 'onboarding'}
+  >
     <Stack.Screen name="onboarding" component={OnBoardingScreen} />
     <Stack.Screen name="signup"  component={SignupScreen} />
     <Stack.Screen name="signin"  component={SignInScreen} />
@@ -115,7 +117,7 @@ const AppStack = () => (
 );
 
 const RootNavigator = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, hasAccount } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   // Keep showing splash screen until minimum time elapsed (3s) OR user context finished loading
@@ -123,7 +125,7 @@ const RootNavigator = () => {
     return <SplashScreen onFinish={() => setSplashDone(true)} />;
   }
 
-  return user ? <AppStack /> : <AuthStack />;
+  return user ? <AppStack /> : <AuthStack hasAccount={hasAccount} />;
 };
 
 export default RootNavigator;
