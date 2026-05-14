@@ -40,11 +40,11 @@ const CARD_SIZE = (SCREEN_W - 48) / 2;
 // ─── Type ─────────────────────────────────────────────────────────────────────
 
 type OutfitItem = {
-    id:        string;
-    title:     string;
-    category:  string;
-    color:     string;
-    imageURL:  string;
+    id: string;
+    title: string;
+    category: string;
+    color: string;
+    imageURL: string;
     createdAt: any;
     fireCount: number;
     rawItemDetails?: any;
@@ -53,17 +53,17 @@ type OutfitItem = {
 // ─── Same mapper as OutfitScreen ──────────────────────────────────────────────
 
 const mapOutfitDoc = (d: QueryDocumentSnapshot<DocumentData>): OutfitItem => {
-    const data        = d.data();
+    const data = d.data();
     const itemDetails = data.itemDetails || {};
-    const firstKey    = Object.keys(itemDetails)[0];
-    const details     = itemDetails[firstKey] || {};
+    const firstKey = Object.keys(itemDetails)[0];
+    const details = itemDetails[firstKey] || {};
     return {
-        id:        d.id,
+        id: d.id,
         createdAt: data.createdAt,
-        title:     details.title    || data.name     || 'Untitled',
-        category:  details.category || data.occasion || 'Uncategorized',
-        color:     details.color    || '',
-        imageURL:  details.imageURL || data.imageURL || '',
+        title: data.name || 'Outfit',
+        category: details.category || data.occasion || 'Uncategorized',
+        color: details.color || '',
+        imageURL: details.imageURL || data.imageURL || '',
         fireCount: data.fireCount ?? 0,
         rawItemDetails: itemDetails,
     };
@@ -73,10 +73,10 @@ const mapOutfitDoc = (d: QueryDocumentSnapshot<DocumentData>): OutfitItem => {
 
 const AllitemsScreen = () => {
     const navigation = useNavigation<any>();
-    const db   = getFirestore(getApp());
+    const db = getFirestore(getApp());
     const user = getAuth(getApp()).currentUser;
 
-    const [items,   setItems]   = useState<OutfitItem[]>([]);
+    const [items, setItems] = useState<OutfitItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [firedIds, setFiredIds] = useState<Set<string>>(new Set());
 
@@ -149,46 +149,49 @@ const AllitemsScreen = () => {
         }
     };
 
-    const renderItem = ({ item }: { item: OutfitItem }) => (
-        <TouchableOpacity 
-            style={s.card}
-            activeOpacity={0.9}
-            onPress={() => {
-                const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
-                    id,
-                    title: detail.title,
-                    category: detail.category,
-                    color: detail.color,
-                    imageURL: detail.imageURL,
-                }));
-                navigation.navigate('preview', { items: itemsArray, isSaved: true });
-            }}
-        >
-            {item.imageURL ? (
-                <Image source={{ uri: item.imageURL }} style={s.cardImage} resizeMode="cover" />
-            ) : (
-                <View style={[s.cardImage, s.cardFallback]}>
-                    <Shirt size={28} color="#CBD5E1" />
+    const renderItem = ({ item, index }: { item: OutfitItem; index: number }) => {
+        const displayTitle = item.title === 'Outfit' ? `Outfit ${items.length - index}` : item.title;
+        return (
+            <TouchableOpacity
+                style={s.card}
+                activeOpacity={0.9}
+                onPress={() => {
+                    const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
+                        id,
+                        title: detail.title,
+                        category: detail.category,
+                        color: detail.color,
+                        imageURL: detail.imageURL,
+                    }));
+                    navigation.navigate('preview', { items: itemsArray, isSaved: true });
+                }}
+            >
+                {item.imageURL ? (
+                    <Image source={{ uri: item.imageURL }} style={s.cardImage} resizeMode="cover" />
+                ) : (
+                    <View style={[s.cardImage, s.cardFallback]}>
+                        <Shirt size={28} color="#CBD5E1" />
+                    </View>
+                )}
+                <View style={s.cardInfo}>
+                    <Text style={s.cardTitle} numberOfLines={1}>{displayTitle}</Text>
+                    <View style={s.metaRow}>
+                        <Text style={s.cardMeta}>
+                            {item.category}{item.color ? ` · ${item.color}` : ''}
+                        </Text>
+                        <TouchableOpacity
+                            style={[s.fireBtn, firedIds.has(item.id) && s.fireBtnActive]}
+                            activeOpacity={0.8}
+                            onPress={() => handleToggleFire(item.id)}
+                        >
+                            <Flame size={12} color={firedIds.has(item.id) ? '#EA580C' : '#FB923C'} fill={firedIds.has(item.id) ? '#EA580C' : 'transparent'} />
+                            <Text style={s.fireText}>{item.fireCount ?? 0}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            )}
-            <View style={s.cardInfo}>
-                <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
-                <View style={s.metaRow}>
-                    <Text style={s.cardMeta}>
-                        {item.category}{item.color ? ` · ${item.color}` : ''}
-                    </Text>
-                    <TouchableOpacity
-                        style={[s.fireBtn, firedIds.has(item.id) && s.fireBtnActive]}
-                        activeOpacity={0.8}
-                        onPress={() => handleToggleFire(item.id)}
-                    >
-                        <Flame size={12} color={firedIds.has(item.id) ? '#EA580C' : '#FB923C'} fill={firedIds.has(item.id) ? '#EA580C' : 'transparent'} />
-                        <Text style={s.fireText}>{item.fireCount ?? 0}</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={s.safeArea}>
@@ -241,11 +244,11 @@ const s = StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
 
     header: {
-        flexDirection:     'row',
-        alignItems:        'center',
-        justifyContent:    'space-between',
-        paddingHorizontal:  20,
-        paddingVertical:    12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
     },
     backBtn: {
         width: 36, height: 36, borderRadius: 18,

@@ -66,7 +66,7 @@ const mapFirestoreDoc = (d: QueryDocumentSnapshot<DocumentData>): OutfitItem => 
         id: d.id,
         userId: data.userId,
         createdAt: data.createdAt,
-        title: details.title || 'Untitled',
+        title: data.name || 'Outfit',
         category: details.category || 'Uncategorized',
         color: details.color || '',
         imageURL: details.imageURL || '',
@@ -111,10 +111,10 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
     }, [isActive, xScale]);
 
     return (
-        <TouchableOpacity 
-            activeOpacity={0.9} 
+        <TouchableOpacity
+            activeOpacity={0.9}
             onPress={() => isActive ? onOutfitPress?.(item) : onCardPress(item.id)}
-            
+
         >
             <View style={[styles.card, isActive && styles.cardActive]}>
                 <View style={styles.imageWrapper}>
@@ -123,7 +123,7 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
                     ) : (
                         <View style={styles.imageFallback}><Text>{item.title[0]}</Text></View>
                     )}
-                    
+
                     <Animated.View style={[styles.deleteBadge, { transform: [{ scale: xScale }] }]}>
                         <TouchableOpacity style={styles.deleteBadgeInner} onPress={() => onDelete(item)}>
                             <X size={12} color="#fff" strokeWidth={3} />
@@ -311,8 +311,8 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                 {/* Category Chips */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsRow}>
                     {categories.map(cat => (
-                        <TouchableOpacity 
-                            key={cat} 
+                        <TouchableOpacity
+                            key={cat}
                             style={[styles.chip, selectedCategory === cat && styles.chipActive]}
                             onPress={() => setSelectedCategory(cat)}
                         >
@@ -335,30 +335,33 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                         ]}
                         onEndReached={loadMore}
                         onEndReachedThreshold={0.5}
-                        renderItem={({ item }) => (
-                            <OutfitCard
-                                item={item}
-                                isActive={activeCardId === item.id}
-                                fired={firedIds.has(item.id)}
-                                onCardPress={setActiveCardId}
-                                onDelete={handleDelete}
-                                onOutfitPress={(item: OutfitItem) => {
-                                    if (onOutfitPress) {
-                                        onOutfitPress(item);
-                                    } else {
-                                        const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
-                                            id,
-                                            title: detail.title,
-                                            category: detail.category,
-                                            color: detail.color,
-                                            imageURL: detail.imageURL,
-                                        }));
-                                        navigation.navigate('preview', { items: itemsArray, isSaved: true });
-                                    }
-                                }}
-                                onToggleFire={handleToggleFire}
-                            />
-                        )}
+                        renderItem={({ item, index }) => {
+                            const displayTitle = item.title === 'Outfit' ? `Outfit ${filteredItems.length - index}` : item.title;
+                            return (
+                                <OutfitCard
+                                    item={{ ...item, title: displayTitle }}
+                                    isActive={activeCardId === item.id}
+                                    fired={firedIds.has(item.id)}
+                                    onCardPress={setActiveCardId}
+                                    onDelete={handleDelete}
+                                    onOutfitPress={(item: OutfitItem) => {
+                                        if (onOutfitPress) {
+                                            onOutfitPress(item);
+                                        } else {
+                                            const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
+                                                id,
+                                                title: detail.title,
+                                                category: detail.category,
+                                                color: detail.color,
+                                                imageURL: detail.imageURL,
+                                            }));
+                                            navigation.navigate('preview', { items: itemsArray, isSaved: true });
+                                        }
+                                    }}
+                                    onToggleFire={handleToggleFire}
+                                />
+                            );
+                        }}
                         ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} /> : null}
                     />
                 )}

@@ -46,6 +46,7 @@ import {
     serverTimestamp,
     writeBatch,
     getDocs,
+    getCountFromServer,
 } from '@react-native-firebase/firestore';
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
@@ -405,8 +406,15 @@ const CombineScreen = ({ navigation }: any) => {
                 ])
             );
 
+            // Fetch current count to number the outfit
+            const qCount = query(collection(db, 'outfits'), where('userId', '==', user.uid));
+            const countSnap = await getCountFromServer(qCount);
+            const nextNumber = (countSnap.data().count ?? 0) + 1;
+            const outfitName = `Outfit ${nextNumber}`;
+
             await addDoc(collection(db, 'outfits'), {
                 userId:      user.uid,
+                name:        outfitName,
                 items,        // { [slotId]: itemId }
                 itemDetails,  // { [itemId]: ItemDetail }
                 createdAt:   serverTimestamp(),

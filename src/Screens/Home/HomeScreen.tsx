@@ -54,9 +54,9 @@ const HomeScreen = () => {
     const [activeTab, setActiveTab] = useState<'wear' | 'build'>('wear');
     const navigation = useNavigation<any>();
 
-    const app  = getApp();
+    const app = getApp();
     const auth = getAuth(app);
-    const db   = getFirestore(app);
+    const db = getFirestore(app);
     const user = auth.currentUser;
     const [recentItems, setRecentItems] = useState<RecentClosetItem[]>([]);
     const [recentOutfits, setRecentOutfits] = useState<RecentOutfit[]>([]);
@@ -108,7 +108,7 @@ const HomeScreen = () => {
                     const details = firstKey ? itemDetails[firstKey] : null;
                     return {
                         id: d.id,
-                        name: details?.title || data.name || 'Untitled outfit',
+                        name: data.name || 'Your Outfit',
                         image: details?.imageURL || data.imageURL || '',
                         rawItemDetails: itemDetails,
                     };
@@ -125,11 +125,11 @@ const HomeScreen = () => {
 
     // ── 2. Search Logic ─────────────────────────────────
     const [searchVisible, setSearchVisible] = useState(false);
-    const [searchQuery,   setSearchQuery]   = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [searching,     setSearching]     = useState(false);
+    const [searching, setSearching] = useState(false);
     const searchAnim = useRef(new Animated.Value(0)).current;
-    const inputRef   = useRef<TextInput>(null);
+    const inputRef = useRef<TextInput>(null);
 
     const toggleSearch = () => {
         if (searchVisible) {
@@ -160,9 +160,9 @@ const HomeScreen = () => {
                 snap.docs
                     .map(d => ({ id: d.id, ...d.data() }) as any)
                     .filter((i: any) =>
-                        (i.title    ?? '').toLowerCase().includes(lower) ||
+                        (i.title ?? '').toLowerCase().includes(lower) ||
                         (i.category ?? '').toLowerCase().includes(lower) ||
-                        (i.color    ?? '').toLowerCase().includes(lower)
+                        (i.color ?? '').toLowerCase().includes(lower)
                     )
             );
         } catch (e) {
@@ -346,7 +346,7 @@ const HomeScreen = () => {
                                     <Image source={{ uri: recentOutfits[0].image }} style={localStyles.singleOutfitImg} resizeMode="cover" />
                                     <View style={localStyles.singleOutfitInfo}>
                                         <Text style={localStyles.singleOutfitName}>{recentOutfits[0].name}</Text>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={localStyles.viewLookBtn}
                                             onPress={() => {
                                                 const item = recentOutfits[0];
@@ -385,42 +385,60 @@ const localStyles = StyleSheet.create({
     searchCardTitle: { fontSize: 13, fontFamily: 'InterSemiBold', fontWeight: '600', color: '#1E293B', paddingHorizontal: 10, paddingTop: 8 },
     searchCardSub: { fontSize: 11, fontFamily: 'InterRegular', color: '#94A3B8', paddingHorizontal: 10, paddingBottom: 8 },
     sectionEmptyText: { width: '100%', fontSize: 13, color: '#94A3B8', fontFamily: 'InterRegular', paddingVertical: 6 },
-    
-    // Prominent Single Card Styles
+
+    // Prominent Single Card Styles (Glassmorphism)
     singleOutfitCard: {
         width: '100%',
-        backgroundColor: '#F8FAFC',
-        borderRadius: 16,
+        height: 240,
+        borderRadius: 24,
         overflow: 'hidden',
+        backgroundColor: '#F1F5F9',
         borderWidth: 1,
         borderColor: '#E2E8F0',
     },
     singleOutfitImg: {
         width: '100%',
-        height: 200,
+        height: '100%',
     },
     singleOutfitInfo: {
-        padding: 16,
+        position: 'absolute',
+        bottom: 12,
+        left: 12,
+        right: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
+        borderRadius: 18,
+        padding: 12,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        // Border for glass effect
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        // Shadow for depth
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
     },
     singleOutfitName: {
-        fontSize: 16,
-        fontFamily: 'InterSemiBold',
-        fontWeight: '600',
+        fontSize: 15,
+        fontFamily: 'InterBold',
+        fontWeight: '700',
         color: '#0F1729',
+        flex: 1,
+        marginRight: 8,
     },
     viewLookBtn: {
         backgroundColor: '#0F1729',
-        paddingHorizontal: 16,
+        paddingHorizontal: 14,
         paddingVertical: 8,
-        borderRadius: 10,
+        borderRadius: 12,
     },
     viewLookText: {
         color: '#fff',
-        fontSize: 13,
-        fontWeight: '600',
+        fontSize: 12,
+        fontWeight: '700',
     },
 });
 
