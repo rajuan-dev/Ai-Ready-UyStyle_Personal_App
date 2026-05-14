@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flame, X } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useAppAlert } from '../../context/AlertContext';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
 import {
@@ -47,6 +49,7 @@ type OutfitItem = {
     userId: string;
     createdAt?: any;
     fireCount: number;
+    rawItemDetails?: any;
 };
 
 const PAGE_SIZE = 10;
@@ -68,6 +71,7 @@ const mapFirestoreDoc = (d: QueryDocumentSnapshot<DocumentData>): OutfitItem => 
         color: details.color || '',
         imageURL: details.imageURL || '',
         fireCount: data.fireCount ?? 0,
+        rawItemDetails: itemDetails,
     };
 };
 
@@ -148,6 +152,7 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
 // --- Main Screen ---
 
 const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = ({ onOutfitPress }) => {
+    const navigation = useNavigation<any>();
     const db = getFirestore(getApp());
     const user = getAuth().currentUser;
 
@@ -223,18 +228,24 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
         }
     };
 
+    const { showConfirm, showSuccess, showError } = useAppAlert();
+
     const handleDelete = (item: OutfitItem) => {
-        Alert.alert('Delete', `Remove ${item.title}?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-                text: 'Delete', 
-                style: 'destructive', 
-                onPress: async () => {
+        showConfirm(
+            'Delete Outfit',
+            `Are you sure you want to remove ${item.title}? This cannot be undone.`,
+            async () => {
+                try {
                     await deleteDoc(doc(db, 'outfits', item.id));
                     setItems(prev => prev.filter(i => i.id !== item.id));
-                } 
+                    setActiveCardId(null);
+                    showSuccess('Deleted', `${item.title} has been removed.`);
+                } catch (e) {
+                    console.warn(e);
+                    showError('Error', 'Failed to delete outfit. Please try again.');
+                }
             }
-        ]);
+        );
     };
 
     const handleToggleFire = useCallback(async (outfitId: string) => {
@@ -321,7 +332,20 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                                 fired={firedIds.has(item.id)}
                                 onCardPress={setActiveCardId}
                                 onDelete={handleDelete}
-                                onOutfitPress={onOutfitPress}
+                                onOutfitPress={(item: OutfitItem) => {
+                                    if (onOutfitPress) {
+                                        onOutfitPress(item);
+                                    } else {
+                                        const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
+                                            id,
+                                            title: detail.title,
+                                            category: detail.category,
+                                            color: detail.color,
+                                            imageURL: detail.imageURL,
+                                        }));
+                                        navigation.navigate('preview', { items: itemsArray, isSaved: true });
+                                    }
+                                }}
                                 onToggleFire={handleToggleFire}
                             />
                         )}

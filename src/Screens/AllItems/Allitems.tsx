@@ -47,6 +47,7 @@ type OutfitItem = {
     imageURL:  string;
     createdAt: any;
     fireCount: number;
+    rawItemDetails?: any;
 };
 
 // ─── Same mapper as OutfitScreen ──────────────────────────────────────────────
@@ -64,6 +65,7 @@ const mapOutfitDoc = (d: QueryDocumentSnapshot<DocumentData>): OutfitItem => {
         color:     details.color    || '',
         imageURL:  details.imageURL || data.imageURL || '',
         fireCount: data.fireCount ?? 0,
+        rawItemDetails: itemDetails,
     };
 };
 
@@ -148,7 +150,20 @@ const AllitemsScreen = () => {
     };
 
     const renderItem = ({ item }: { item: OutfitItem }) => (
-        <View style={s.card}>
+        <TouchableOpacity 
+            style={s.card}
+            activeOpacity={0.9}
+            onPress={() => {
+                const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
+                    id,
+                    title: detail.title,
+                    category: detail.category,
+                    color: detail.color,
+                    imageURL: detail.imageURL,
+                }));
+                navigation.navigate('preview', { items: itemsArray, isSaved: true });
+            }}
+        >
             {item.imageURL ? (
                 <Image source={{ uri: item.imageURL }} style={s.cardImage} resizeMode="cover" />
             ) : (
@@ -172,7 +187,7 @@ const AllitemsScreen = () => {
                     </TouchableOpacity>
                 </View>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     return (

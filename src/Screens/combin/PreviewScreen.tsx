@@ -293,7 +293,7 @@ type SlotMeta = {
 const PreviewScreen = ({ route, navigation }: any) => {
 
     // items: ClosetItem[] passed from CombineScreen via navigation params
-    const { items = [] }: { items: ClosetItem[] } = route.params || {};
+    const { items = [], isSaved = false }: { items: ClosetItem[], isSaved?: boolean } = route.params || {};
 
     const app  = getApp();
     const auth = getAuth(app);
@@ -366,7 +366,7 @@ const PreviewScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity style={st.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
                     <ArrowLeft size={20} color="#0F1729" />
                 </TouchableOpacity>
-                <Text style={st.headerTitle}>Preview Look</Text>
+                <Text style={st.headerTitle}>{isSaved ? 'Saved Look' : 'Preview Look'}</Text>
                 <TouchableOpacity style={st.iconBtn} activeOpacity={0.8}>
                     <Share2 size={18} color="#0F1729" />
                 </TouchableOpacity>
@@ -374,7 +374,7 @@ const PreviewScreen = ({ route, navigation }: any) => {
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={st.scroll}
+                contentContainerStyle={[st.scroll, isSaved && { paddingBottom: 40 }]}
             >
                 {items.length === 0 ? (
                     /* ── Empty state ── */
@@ -467,25 +467,26 @@ const PreviewScreen = ({ route, navigation }: any) => {
                 )}
             </ScrollView>
 
-            {/* ══ BOTTOM BAR ══ */}
-            <View style={st.bottomBar}>
-                <TouchableOpacity
-                    style={st.backOutfitBtn}
-                       onPress={() => navigation.navigate('combine')}
-                    activeOpacity={0.8}
-                >
-                    <Text style={st.backOutfitTxt}>Edit Outfit</Text>
-                </TouchableOpacity>
+            {!isSaved && (
+                <View style={st.bottomBar}>
+                    <TouchableOpacity
+                        style={st.backOutfitBtn}
+                           onPress={() => navigation.navigate('combine')}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={st.backOutfitTxt}>Edit Outfit</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={st.confirmBtn}
-                 
-                       onPress={() => navigation.goBack()}
-                    activeOpacity={0.85}
-                >
-                    <Text style={st.confirmTxt}>Confirm Look</Text>
-                </TouchableOpacity>
-            </View>
+                    <TouchableOpacity
+                        style={st.confirmBtn}
+                     
+                           onPress={() => navigation.goBack()}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={st.confirmTxt}>Confirm Look</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
         </SafeAreaView>
     );

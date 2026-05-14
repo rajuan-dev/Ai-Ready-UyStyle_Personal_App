@@ -45,6 +45,7 @@ type RecentOutfit = {
     id: string;
     name: string;
     image: string;
+    rawItemDetails?: any;
 };
 
 const HomeScreen = () => {
@@ -116,6 +117,7 @@ const HomeScreen = () => {
                         id: d.id,
                         name: details?.title || data.name || 'Untitled outfit',
                         image: details?.imageURL || data.imageURL || '',
+                        rawItemDetails: itemDetails,
                     };
                 }),
             );
