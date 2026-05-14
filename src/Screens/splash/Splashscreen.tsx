@@ -28,9 +28,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         <ImageBackground
             source={require('../../../assets/images/bg-onboarding.png')}
             style={styles.background}
-            resizeMode="cover"
         >
-            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
             {/* Center Logo Section */}
             <View style={styles.centerContent}>
@@ -44,7 +43,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
             {/* Bottom Loading Section */}
             <View style={styles.bottomContent}>
-                <ActivityIndicator size="large" color="#fff" style={styles.loader} />
+                <ActivityIndicator size="large" color="#2563EB" style={styles.loader} />
                 <Text style={styles.loadingText}>Loading...</Text>
             </View>
         </ImageBackground>
@@ -78,10 +77,11 @@ const styles = StyleSheet.create({
     },
     tagline: {
         fontSize: 18,
-        color: '#fff',
+        color: '#1E293B',
         fontWeight: '500',
         textAlign: 'center',
         fontFamily: 'InterMedium',
+        marginTop: 4,
     },
     bottomContent: {
         alignItems: 'center',
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         fontSize: 16,
-        color: '#4A729E', // a slightly darker blue/grey for the loading text
+        color: '#475569',
         fontWeight: '500',
         fontFamily: 'InterMedium',
     },

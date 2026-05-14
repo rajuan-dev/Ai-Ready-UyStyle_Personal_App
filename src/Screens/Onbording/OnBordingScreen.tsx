@@ -119,7 +119,7 @@ export default function OnBoardingScreen() {
             style={styles.background}
             resizeMode="cover"
         >
-            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
             {/* Swipeable Top Section */}
             <View style={styles.carouselWrapper}>
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     title: {
-        color: '#ffffff',
+        color: '#1E293B',
         fontSize: 34,
         fontWeight: '800',
         textAlign: 'center',
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     subtitle: {
-        color: '#E2E8F0',
+        color: '#475569',
         fontSize: 18,
         textAlign: 'center',
         fontFamily: 'InterRegular',
