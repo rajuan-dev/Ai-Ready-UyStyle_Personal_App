@@ -30,7 +30,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     setLoading(true);
     try {
       const auth = getAuth(getApp());
-      await sendPasswordResetEmail(auth, email.trim());
+      await sendPasswordResetEmail(auth, email.trim().toLowerCase());
       Alert.alert(
         'Success',
         'A password reset link has been sent to your email. Check your inbox and spam folder, then come back to sign in.',
@@ -39,6 +39,10 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     } catch (error: any) {
       if (error.code === 'auth/invalid-email') {
         Alert.alert('Error', 'Please enter a valid email address');
+      } else if (error.code === 'auth/too-many-requests') {
+        Alert.alert('Error', 'Too many attempts. Please wait a moment and try again.');
+      } else if (error.code === 'auth/network-request-failed') {
+        Alert.alert('Error', 'Network error. Please check your internet connection and try again.');
       } else {
         Alert.alert('Error', error.message);
       }

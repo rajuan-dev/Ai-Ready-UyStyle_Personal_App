@@ -1,6 +1,6 @@
 
 
-import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   View,
@@ -46,19 +46,19 @@ const SignInScreen = ({ navigation }: any) => {
     setLoading(true);
     try {
       const auth = getAuth(getApp());
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
 
       // ✅ navigate() লাগবে না — onAuthStateChanged নিজেই AppStack-এ নিয়ে যাবে
 
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        Alert.alert('Error', 'No account found with this email');
-      } else if (error.code === 'auth/wrong-password') {
-        Alert.alert('Error', 'Incorrect password');
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        Alert.alert('Error', 'Invalid email or password. Please try again or reset your password.');
       } else if (error.code === 'auth/invalid-email') {
         Alert.alert('Error', 'Please enter a valid email address');
-      } else if (error.code === 'auth/invalid-credential') {
-        Alert.alert('Error', 'Invalid email or password');
+      } else if (error.code === 'auth/too-many-requests') {
+        Alert.alert('Error', 'Too many attempts. Please wait a moment and try again.');
+      } else if (error.code === 'auth/network-request-failed') {
+        Alert.alert('Error', 'Network error. Please check your internet connection and try again.');
       } else {
         Alert.alert('Error', error.message);
       }

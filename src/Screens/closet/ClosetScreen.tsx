@@ -245,6 +245,9 @@ const ClosetScreen = () => {
         const isLiked = likedIds.has(itemId);
         const delta   = isLiked ? -1 : 1;
 
+        const targetItem = items.find(i => i.id === itemId);
+        const imageURL   = targetItem?.imageURL || '';
+
         // Optimistic update
         setItems(prev =>
             prev.map(i =>
@@ -261,7 +264,7 @@ const ClosetScreen = () => {
                 await deleteDoc(likeRef);
                 await updateDoc(itemRef, { likeCount: increment(-1) });
             } else {
-                await setDoc(likeRef, { userId: user.uid, itemId, createdAt: new Date() });
+                await setDoc(likeRef, { userId: user.uid, itemId, createdAt: new Date(), imageURL });
                 await updateDoc(itemRef, { likeCount: increment(1) });
             }
         } catch (err) {
@@ -275,7 +278,7 @@ const ClosetScreen = () => {
             );
             console.error('Like error:', err);
         }
-    }, [user, likedIds, db]);
+    }, [user, likedIds, db, items]);
 
     // ── Render helpers
     const renderItem = useCallback(

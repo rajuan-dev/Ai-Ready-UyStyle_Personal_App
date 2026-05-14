@@ -20,7 +20,6 @@ import { styles } from './style';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from '@react-native-firebase/auth';
 import { getFirestore, collection, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
-import { useAuth } from '../../context/AuthContext';
 
 const EyeIcon = ({ visible }: { visible: boolean }) => (
   <View>
@@ -31,8 +30,6 @@ const EyeIcon = ({ visible }: { visible: boolean }) => (
 );
 
 const SignupScreen = ({ navigation }: any) => {
-  const { hasAccount } = useAuth(); // ← age account check korbe
-
   const [fullName,         setFullName]         = useState('');
   const [email,            setEmail]            = useState('');
   const [password,         setPassword]         = useState('');
@@ -66,37 +63,50 @@ const SignupScreen = ({ navigation }: any) => {
 
     setLoading(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const app          = getApp();
       const authInstance = getAuth(app);
       const db           = getFirestore(app);
 
       const userCredential = await createUserWithEmailAndPassword(
         authInstance,
-        email.trim(),
+        normalizedEmail,
         password
       );
 
       const uid = userCredential.user.uid;
 
-      await setDoc(doc(collection(db, 'users'), uid), {
-        fullName:  fullName.trim(),
-        email:     email.trim().toLowerCase(),
-        createdAt: serverTimestamp(),
-      });
+      try {
+        await setDoc(doc(collection(db, 'users'), uid), {
+          fullName:  fullName.trim(),
+          email:     normalizedEmail,
+          createdAt: serverTimestamp(),
+        }, { merge: true });
 
-      await updateProfile(userCredential.user, {
-        displayName: fullName.trim(),
-      });
+        await updateProfile(userCredential.user, {
+          displayName: fullName.trim(),
+        });
+      } catch (profileError) {
+        console.error('[Signup] profile setup error:', profileError);
+        Alert.alert(
+          'Account created',
+          'Your account was created, but we could not finish setting up your profile. Please log in again. If this keeps happening, contact support.'
+        );
+      }
 
       //  navigate() nai — onAuthStateChanged → AppStack → Home
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
-        Alert.alert('Already have an account? Sign in');
+        Alert.alert('Error', 'Email already registered. Please log in or reset your password.');
       } else if (error.code === 'auth/invalid-email') {
         Alert.alert('Error', 'Please enter a valid email address');
       } else if (error.code === 'auth/weak-password') {
-        Alert.alert('Error', 'Please choose a strong password');
+        Alert.alert('Error', 'Please choose a stronger password.');
+      } else if (error.code === 'auth/too-many-requests') {
+        Alert.alert('Error', 'Too many attempts. Please wait a moment and try again.');
+      } else if (error.code === 'auth/network-request-failed') {
+        Alert.alert('Error', 'Network error. Please check your internet connection and try again.');
       } else {
         Alert.alert('Error', error.message);
       }

@@ -8,9 +8,10 @@ import {
     StatusBar,
     Alert,
     ActivityIndicator,
+    RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronRight, PenLine, Shirt, User } from 'lucide-react-native';
+import { ChevronRight, Heart, PenLine, Shirt, User } from 'lucide-react-native';
 import { styles } from './style';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getApp } from '@react-native-firebase/app';
@@ -54,11 +55,6 @@ const menuItems = [
     { label: 'Logout',           danger: true,  screen: null              },
 ];
 
-const favoriteLooks = [
-    'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=300',
-    'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300',
-];
-
 const ProfileScreen = () => {
     const navigation = useNavigation<any>();
 
@@ -75,117 +71,125 @@ const ProfileScreen = () => {
         profileCache?.likedPreviews ?? []
     );
 
+    const [refreshing,    setRefreshing]    = useState(false);
+
     // Prevent duplicate fetches if focus fires rapidly
     const fetchingRef = useRef(false);
 
+    const triggerFetch = useCallback(async (force = false) => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        // If cache is fresh and not forced, skip network entirely
+        if (!force && profileCache && Date.now() - profileCache.timestamp < CACHE_TTL) {
+            setFullName(profileCache.fullName);
+            setPhotoURL(profileCache.photoURL);
+            setClosetCount(profileCache.closetCount);
+            setOutfitCount(profileCache.outfitCount);
+            setLikesCount(profileCache.likesCount);
+            setLikedPreviews(profileCache.likedPreviews);
+            setLoading(false);
+            setCountsLoading(false);
+            return;
+        }
+
+        if (fetchingRef.current) return;
+        fetchingRef.current = true;
+
+        if (force) {
+            setRefreshing(true);
+        } else if (profileCache) {
+            setLoading(false);
+            setCountsLoading(false);
+        }
+
+        const uid = user.uid;
+
+        try {
+            const [profileSnap, closetSnap, outfitsSnap, likesSnap, previewSnap] =
+                await Promise.all([
+                    getDoc(doc(db, 'users', uid)),
+                    getCountFromServer(
+                        query(collection(db, 'closetItems'), where('userId', '==', uid))
+                    ),
+                    getCountFromServer(
+                        query(collection(db, 'outfits'), where('userId', '==', uid))
+                    ),
+                    getCountFromServer(
+                        query(collection(db, 'likes'), where('userId', '==', uid))
+                    ),
+                    getDocs(
+                        query(
+                            collection(db, 'likes'),
+                            where('userId', '==', uid),
+                            orderBy('createdAt', 'desc'),
+                            limit(2)
+                        )
+                    ),
+                ]);
+
+            let name = '';
+            let photo: string | null = null;
+            if (profileSnap.exists()) {
+                const data = profileSnap.data();
+                name  = data?.fullName || '';
+                photo = data?.photoURL || null;
+            }
+            setFullName(name);
+            setPhotoURL(photo);
+
+            const cCloset  = closetSnap.data().count;
+            const cOutfits = outfitsSnap.data().count;
+            const cLikes   = likesSnap.data().count;
+            setClosetCount(cCloset);
+            setOutfitCount(cOutfits);
+            setLikesCount(cLikes);
+
+            const previews: { id: string; imageURL: string }[] = [];
+            for (const d of previewSnap.docs) {
+                const likeData = d.data();
+                if (likeData.imageURL) {
+                    previews.push({ id: d.id, imageURL: likeData.imageURL });
+                } else if (likeData.itemId) {
+                    try {
+                        const itemSnap = await getDoc(doc(db, 'closetItems', likeData.itemId));
+                        if (itemSnap.exists()) {
+                            previews.push({ id: d.id, imageURL: itemSnap.data()?.imageURL || '' });
+                        }
+                    } catch (e) { console.log('[Profile] Fav Join failed:', e); }
+                }
+            }
+            const validPreviews = previews.filter(p => p.imageURL !== '');
+            setLikedPreviews(validPreviews);
+
+            profileCache = {
+                fullName: name,
+                photoURL: photo,
+                closetCount: cCloset,
+                outfitCount: cOutfits,
+                likesCount: cLikes,
+                likedPreviews: validPreviews,
+                timestamp: Date.now(),
+            };
+        } catch (e: any) {
+            console.log('[Profile] fetch error:', e?.message || e);
+        } finally {
+            setLoading(false);
+            setCountsLoading(false);
+            setRefreshing(false);
+            fetchingRef.current = false;
+        }
+    }, []);
+
     useFocusEffect(
         useCallback(() => {
-            const user = auth.currentUser;
-            if (!user) return;
-
-            // If cache is fresh, skip network entirely
-            if (profileCache && Date.now() - profileCache.timestamp < CACHE_TTL) {
-                // Just apply cached values (already set as initial state, but cover state resets)
-                setFullName(profileCache.fullName);
-                setPhotoURL(profileCache.photoURL);
-                setClosetCount(profileCache.closetCount);
-                setOutfitCount(profileCache.outfitCount);
-                setLikesCount(profileCache.likesCount);
-                setLikedPreviews(profileCache.likedPreviews);
-                setLoading(false);
-                setCountsLoading(false);
-                return;
-            }
-
-            if (fetchingRef.current) return;
-            fetchingRef.current = true;
-
-            let cancelled = false;
-            const uid = user.uid;
-
-            // If we have stale cache, show it instantly while refreshing in background
-            if (profileCache) {
-                setLoading(false);
-                setCountsLoading(false);
-            }
-
-            const fetchAll = async () => {
-                try {
-                    // ── Run ALL queries in parallel ──────────────────
-                    const [profileSnap, closetSnap, outfitsSnap, likesSnap, previewSnap] =
-                        await Promise.all([
-                            getDoc(doc(db, 'users', uid)),
-                            getCountFromServer(
-                                query(collection(db, 'closetItems'), where('userId', '==', uid))
-                            ),
-                            getCountFromServer(
-                                query(collection(db, 'outfits'), where('userId', '==', uid))
-                            ),
-                            getCountFromServer(
-                                query(collection(db, 'likes'), where('userId', '==', uid))
-                            ),
-                            getDocs(
-                                query(
-                                    collection(db, 'likes'),
-                                    where('userId', '==', uid),
-                                    orderBy('createdAt', 'desc'),
-                                    limit(2)
-                                )
-                            ),
-                        ]);
-
-                    if (cancelled) return;
-
-                    // ── Profile doc ──
-                    let name = '';
-                    let photo: string | null = null;
-                    if (profileSnap.exists()) {
-                        const data = profileSnap.data();
-                        name  = data?.fullName || '';
-                        photo = data?.photoURL || null;
-                    }
-                    setFullName(name);
-                    setPhotoURL(photo);
-
-                    // ── Counts ──
-                    const cCloset  = closetSnap.data().count;
-                    const cOutfits = outfitsSnap.data().count;
-                    const cLikes   = likesSnap.data().count;
-                    setClosetCount(cCloset);
-                    setOutfitCount(cOutfits);
-                    setLikesCount(cLikes);
-
-                    // ── Liked previews ──
-                    const previews = previewSnap.docs
-                        .map(d => ({ id: d.id, imageURL: d.data().imageURL || '' }))
-                        .filter(p => p.imageURL !== '');
-                    setLikedPreviews(previews);
-
-                    // ── Update cache ──
-                    profileCache = {
-                        fullName: name,
-                        photoURL: photo,
-                        closetCount: cCloset,
-                        outfitCount: cOutfits,
-                        likesCount: cLikes,
-                        likedPreviews: previews,
-                        timestamp: Date.now(),
-                    };
-                } catch (e: any) {
-                    console.log('[Profile] fetch error:', e?.message || e);
-                } finally {
-                    if (!cancelled) {
-                        setLoading(false);
-                        setCountsLoading(false);
-                    }
-                    fetchingRef.current = false;
-                }
-            };
-
-            fetchAll();
-            return () => { cancelled = true; fetchingRef.current = false; };
-        }, [])
+            triggerFetch(false);
+        }, [triggerFetch])
     );
+
+    const onRefresh = useCallback(() => {
+        triggerFetch(true);
+    }, [triggerFetch]);
 
     const stats = [
         { label: 'Items',     value: countsLoading ? '—' : String(closetCount) },
@@ -222,6 +226,14 @@ const ProfileScreen = () => {
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#2869BD']}
+                        tintColor="#2869BD"
+                    />
+                }
             >
                 {/* Profile Header */}
                 <View style={styles.profileHeader}>
@@ -296,19 +308,25 @@ const ProfileScreen = () => {
                         </TouchableOpacity>
                     </View>
 
-                    
-
-                {/* Favorite Looks */}
-                <View style={styles.section}>
-
                     <View style={styles.favRow}>
-                        {favoriteLooks.map((uri, index) => (
-                            <TouchableOpacity key={index} style={styles.favCard} activeOpacity={0.85}>
-                                <Image source={{ uri }} style={styles.favImage} />
-                            </TouchableOpacity>
-                        ))}
+                        {likedPreviews.length > 0 ? (
+                            likedPreviews.map((item) => (
+                                <TouchableOpacity 
+                                    key={item.id} 
+                                    style={styles.favCard} 
+                                    activeOpacity={0.85}
+                                    onPress={() => navigation.navigate('FavoriteLooksScreen')}
+                                >
+                                    <Image source={{ uri: item.imageURL }} style={styles.favImage} />
+                                </TouchableOpacity>
+                            ))
+                        ) : (
+                            <View style={styles.emptyFavContainer}>
+                                <Heart size={20} color="#94A3B8" strokeWidth={1.8} fill="transparent" />
+                                <Text style={styles.emptyFavText}>No favorite looks yet</Text>
+                            </View>
+                        )}
                     </View>
-                </View>
                 </View>
 
                 {/* Menu Items */}

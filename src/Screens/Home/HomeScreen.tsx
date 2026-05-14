@@ -12,7 +12,7 @@ import {
     Animated,
     Keyboard,
     StyleSheet,
-    Dimensions,
+    Dimensions, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, ChevronRight, Search, Sparkles, Zap, X, User } from 'lucide-react-native';
@@ -28,25 +28,24 @@ import {
     query,
     where,
     getDocs,
+    orderBy,
+    limit,
 } from '@react-native-firebase/firestore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-// ─── Unchanged hardcoded data (same as original) ──────────────────────────────
+type RecentClosetItem = {
+    id: string;
+    name: string;
+    category: string;
+    image: string;
+};
 
-const recentItems = [
-    { id: 1, name: 'White Oversiz...', category: 'Top',    image: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=200' },
-    { id: 2, name: 'Blue Straight J...', category: 'Bottom', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200' },
-    { id: 3, name: 'Black Sneake...',  category: 'Shoes',  image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200' },
-];
-
-const recentOutfits = [
-    { id: 1, name: 'Casual Friday...',   image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=200' },
-    { id: 2, name: 'Blue Straight J...', image: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?w=200' },
-    { id: 3, name: 'Black Sneake...',    image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200' },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
+type RecentOutfit = {
+    id: string;
+    name: string;
+    image: string;
+};
 
 const HomeScreen = () => {
     const [activeTab, setActiveTab] = useState<'wear' | 'build'>('wear');
@@ -56,6 +55,8 @@ const HomeScreen = () => {
     const auth = getAuth(app);
     const db   = getFirestore(app);
     const user = auth.currentUser;
+    const [recentItems, setRecentItems] = useState<RecentClosetItem[]>([]);
+    const [recentOutfits, setRecentOutfits] = useState<RecentOutfit[]>([]);
 
     // ── 1. Real-time profile photo ──────────────────────
     const [photoURL, setPhotoURL] = useState<string | null>(null);
@@ -69,7 +70,65 @@ const HomeScreen = () => {
             }
         );
         return () => unsub();
-    }, [user?.uid]);
+    }, [db, user]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        const itemsQuery = query(
+            collection(db, 'closetItems'),
+            where('userId', '==', user.uid),
+            orderBy('createdAt', 'desc'),
+            limit(5),
+        );
+        const outfitsQuery = query(
+            collection(db, 'outfits'),
+            where('userId', '==', user.uid),
+            orderBy('createdAt', 'desc'),
+            limit(5),
+        );
+
+        const unsubItems = onSnapshot(itemsQuery, snapshot => {
+            setRecentItems(
+                snapshot.docs.map(d => {
+                    const data = d.data() as any;
+                    return {
+                        id: d.id,
+                        name: data.title || 'Untitled item',
+                        category: data.category || 'Uncategorized',
+                        image: data.imageURL || '',
+                    };
+                }),
+            );
+        }, error => {
+            console.warn('[Home] recent items error:', error);
+            setRecentItems([]);
+        });
+
+        const unsubOutfits = onSnapshot(outfitsQuery, snapshot => {
+            setRecentOutfits(
+                snapshot.docs.map(d => {
+                    const data = d.data() as any;
+                    const itemDetails = data.itemDetails || {};
+                    const firstKey = Object.keys(itemDetails)[0];
+                    const details = firstKey ? itemDetails[firstKey] : null;
+                    return {
+                        id: d.id,
+                        name: details?.title || data.name || 'Untitled outfit',
+                        image: details?.imageURL || data.imageURL || '',
+                    };
+                }),
+            );
+        }, error => {
+            console.warn('[Home] recent outfits error:', error);
+            setRecentOutfits([]);
+        });
+
+        return () => {
+            unsubItems();
+            unsubOutfits();
+        };
+    }, [db, user]);
 
     // ── 2. Search state ─────────────────────────────────
     const [searchVisible, setSearchVisible] = useState(false);
@@ -118,11 +177,67 @@ const HomeScreen = () => {
         } finally {
             setSearching(false);
         }
-    }, [user?.uid]);
+    }, [db, user]);
 
     const searchBarHeight = searchAnim.interpolate({
         inputRange: [0, 1], outputRange: [0, 52],
     });
+
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        if (!user) return;
+        setRefreshing(true);
+        try {
+            const itemsQuery = query(
+                collection(db, 'closetItems'),
+                where('userId', '==', user.uid),
+                orderBy('createdAt', 'desc'),
+                limit(5),
+            );
+            const outfitsQuery = query(
+                collection(db, 'outfits'),
+                where('userId', '==', user.uid),
+                orderBy('createdAt', 'desc'),
+                limit(5),
+            );
+
+            const [itemsSnap, outfitsSnap] = await Promise.all([
+                getDocs(itemsQuery),
+                getDocs(outfitsQuery),
+            ]);
+
+            setRecentItems(
+                itemsSnap.docs.map(d => {
+                    const data = d.data() as any;
+                    return {
+                        id: d.id,
+                        name: data.title || 'Untitled item',
+                        category: data.category || 'Uncategorized',
+                        image: data.imageURL || '',
+                    };
+                })
+            );
+
+            setRecentOutfits(
+                outfitsSnap.docs.map(d => {
+                    const data = d.data() as any;
+                    const itemDetails = data.itemDetails || {};
+                    const firstKey = Object.keys(itemDetails)[0];
+                    const details = firstKey ? itemDetails[firstKey] : null;
+                    return {
+                        id: d.id,
+                        name: details?.title || data.name || 'Untitled outfit',
+                        image: details?.imageURL || data.imageURL || '',
+                    };
+                })
+            );
+        } catch (e) {
+            console.warn('[Home] pull to refresh error:', e);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [db, user]);
 
     // ── Render ───────────────────────────────────────────
     return (
@@ -230,6 +345,14 @@ const HomeScreen = () => {
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={['#2869BD']}
+                            tintColor="#2869BD"
+                        />
+                    }
                 >
                     {/* Quick Fit Banner */}
                     <TouchableOpacity
@@ -296,13 +419,18 @@ const HomeScreen = () => {
                             </TouchableOpacity>
                         </View>
                         <View style={styles.itemsRow}>
-                            {recentItems.map(item => (
+                            {recentItems.length > 0 ? recentItems.map(item => (
                                 <TouchableOpacity key={item.id} style={styles.itemCard} activeOpacity={0.8}>
-                                    <Image source={{ uri: item.image }} style={styles.itemImage} />
+                                    {item.image
+                                        ? <Image source={{ uri: item.image }} style={styles.itemImage} />
+                                        : <View style={styles.itemImage} />
+                                    }
                                     <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
                                     <Text style={styles.itemCategory}>{item.category}</Text>
                                 </TouchableOpacity>
-                            ))}
+                            )) : (
+                                <Text style={localStyles.sectionEmptyText}>No recent items yet.</Text>
+                            )}
                         </View>
                     </View>
 
@@ -319,12 +447,17 @@ const HomeScreen = () => {
                             </TouchableOpacity>
                         </View>
                         <View style={styles.itemsRow}>
-                            {recentOutfits.map(item => (
+                            {recentOutfits.length > 0 ? recentOutfits.map(item => (
                                 <TouchableOpacity key={item.id} style={styles.itemCard} activeOpacity={0.8}>
-                                    <Image source={{ uri: item.image }} style={styles.itemImage} />
+                                    {item.image
+                                        ? <Image source={{ uri: item.image }} style={styles.itemImage} />
+                                        : <View style={styles.itemImage} />
+                                    }
                                     <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
                                 </TouchableOpacity>
-                            ))}
+                            )) : (
+                                <Text style={localStyles.sectionEmptyText}>No recent outfits yet.</Text>
+                            )}
                         </View>
                     </View>
 
@@ -402,6 +535,13 @@ const localStyles = StyleSheet.create({
         color:             '#94A3B8',
         paddingHorizontal: 10,
         paddingBottom:      8,
+    },
+    sectionEmptyText: {
+        width: '100%',
+        fontSize: 13,
+        color: '#94A3B8',
+        fontFamily: 'InterRegular',
+        paddingVertical: 6,
     },
 });
 

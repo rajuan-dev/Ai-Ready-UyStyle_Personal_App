@@ -172,6 +172,29 @@ export const styles = StyleSheet.create({
         fontFamily: 'InterRegular',
         color: '#65758B',
     },
+    itemMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    fireBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#FFF7ED',
+        borderRadius: 999,
+        paddingHorizontal: 7,
+        paddingVertical: 4,
+    },
+    fireBtnActive: {
+        backgroundColor: '#FFEDD5',
+    },
+    fireCount: {
+        fontSize: 10,
+        fontFamily: 'InterSemiBold',
+        fontWeight: '600',
+        color: '#EA580C',
+    },
 
     // ─── Skeleton loader ────────────
     skeletonGrid: {

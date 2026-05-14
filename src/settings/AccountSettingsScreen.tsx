@@ -118,7 +118,11 @@ const AccountSettingsScreen = () => {
     // ── Firestore listener ─────────────────────────────────────────────────────
     useEffect(() => {
         const currentUser = auth.currentUser;
-        if (!currentUser) { navigation.replace('Login'); return; }
+        if (!currentUser) {
+            setError('Please sign in again to access account settings.');
+            setLoading(false);
+            return;
+        }
 
         const unsubscribe = onSnapshot(
             doc(db, 'users', currentUser.uid),
@@ -143,7 +147,7 @@ const AccountSettingsScreen = () => {
         );
 
         return () => unsubscribe();
-    }, []);
+    }, [auth, db, navigation]);
 
     // ── Upload photo to Storage → save URL to Firestore ────────────────────────
     const uploadPhoto = async (uri: string) => {

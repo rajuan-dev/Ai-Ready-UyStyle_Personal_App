@@ -12,7 +12,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Shirt } from 'lucide-react-native';
+import { ArrowLeft, Flame, Shirt } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
@@ -23,6 +23,13 @@ import {
     where,
     orderBy,
     getDocs,
+    onSnapshot,
+    doc,
+    setDoc,
+    deleteDoc,
+    updateDoc,
+    increment,
+    serverTimestamp,
     QueryDocumentSnapshot,
     DocumentData,
 } from '@react-native-firebase/firestore';
@@ -39,6 +46,7 @@ type OutfitItem = {
     color:     string;
     imageURL:  string;
     createdAt: any;
+    fireCount: number;
 };
 
 // ─── Same mapper as OutfitScreen ──────────────────────────────────────────────
@@ -55,6 +63,7 @@ const mapOutfitDoc = (d: QueryDocumentSnapshot<DocumentData>): OutfitItem => {
         category:  details.category || data.occasion || 'Uncategorized',
         color:     details.color    || '',
         imageURL:  details.imageURL || data.imageURL || '',
+        fireCount: data.fireCount ?? 0,
     };
 };
 
@@ -67,6 +76,7 @@ const AllitemsScreen = () => {
 
     const [items,   setItems]   = useState<OutfitItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [firedIds, setFiredIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (!user) return;
@@ -87,7 +97,55 @@ const AllitemsScreen = () => {
             }
         };
         fetchOutfits();
-    }, []);
+    }, [db, user]);
+
+    useEffect(() => {
+        if (!user) return;
+        const firesQuery = query(collection(db, 'outfitFires'), where('userId', '==', user.uid));
+        return onSnapshot(firesQuery, snapshot => {
+            setFiredIds(new Set(snapshot.docs.map(d => d.data().outfitId as string)));
+        });
+    }, [db, user]);
+
+    const handleToggleFire = async (outfitId: string) => {
+        if (!user) return;
+        const isFired = firedIds.has(outfitId);
+        const delta = isFired ? -1 : 1;
+
+        setItems(prev =>
+            prev.map(item =>
+                item.id === outfitId
+                    ? { ...item, fireCount: Math.max(0, (item.fireCount ?? 0) + delta) }
+                    : item,
+            ),
+        );
+
+        try {
+            const fireRef = doc(db, 'outfitFires', `${user.uid}_${outfitId}`);
+            const outfitRef = doc(db, 'outfits', outfitId);
+
+            if (isFired) {
+                await deleteDoc(fireRef);
+                await updateDoc(outfitRef, { fireCount: increment(-1) });
+            } else {
+                await setDoc(fireRef, {
+                    userId: user.uid,
+                    outfitId,
+                    createdAt: serverTimestamp(),
+                });
+                await updateDoc(outfitRef, { fireCount: increment(1) });
+            }
+        } catch (error) {
+            setItems(prev =>
+                prev.map(item =>
+                    item.id === outfitId
+                        ? { ...item, fireCount: Math.max(0, (item.fireCount ?? 0) - delta) }
+                        : item,
+                ),
+            );
+            console.warn('[Allitems fire]', error);
+        }
+    };
 
     const renderItem = ({ item }: { item: OutfitItem }) => (
         <View style={s.card}>
@@ -100,9 +158,19 @@ const AllitemsScreen = () => {
             )}
             <View style={s.cardInfo}>
                 <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={s.cardMeta}>
-                    {item.category}{item.color ? ` · ${item.color}` : ''}
-                </Text>
+                <View style={s.metaRow}>
+                    <Text style={s.cardMeta}>
+                        {item.category}{item.color ? ` · ${item.color}` : ''}
+                    </Text>
+                    <TouchableOpacity
+                        style={[s.fireBtn, firedIds.has(item.id) && s.fireBtnActive]}
+                        activeOpacity={0.8}
+                        onPress={() => handleToggleFire(item.id)}
+                    >
+                        <Flame size={12} color={firedIds.has(item.id) ? '#EA580C' : '#FB923C'} fill={firedIds.has(item.id) ? '#EA580C' : 'transparent'} />
+                        <Text style={s.fireText}>{item.fireCount ?? 0}</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     );
@@ -196,11 +264,34 @@ const s = StyleSheet.create({
     cardInfo: {
         paddingHorizontal: 10, paddingVertical: 8, gap: 2,
     },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
     cardTitle: {
         fontSize: 13, fontFamily: 'InterSemiBold', fontWeight: '600', color: '#1E293B',
     },
     cardMeta: {
         fontSize: 11, fontFamily: 'InterRegular', color: '#94A3B8',
+    },
+    fireBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#FFF7ED',
+        borderRadius: 999,
+        paddingHorizontal: 7,
+        paddingVertical: 4,
+    },
+    fireBtnActive: {
+        backgroundColor: '#FFEDD5',
+    },
+    fireText: {
+        fontSize: 10,
+        color: '#EA580C',
+        fontFamily: 'InterSemiBold',
+        fontWeight: '600',
     },
     emptyText: {
         fontSize: 14, fontFamily: 'InterRegular', color: '#94A3B8',

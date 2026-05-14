@@ -41,20 +41,15 @@ type closetItems= {
     createdAt: any;
 };
 
-// ─── Same mapper as closetItemscreen ──────────────────────────────────────────────
-
-const mapOutfitDoc = (d: QueryDocumentSnapshot<DocumentData>): closetItems=> {
-    const data        = d.data();
-    const itemDetails = data.itemDetails || {};
-    const firstKey    = Object.keys(itemDetails)[0];
-    const details     = itemDetails[firstKey] || {};
+const mapClosetDoc = (d: QueryDocumentSnapshot<DocumentData>): closetItems=> {
+    const data = d.data();
     return {
         id:        d.id,
         createdAt: data.createdAt,
-        title:     details.title    || data.name     || 'Untitled',
-        category:  details.category || data.occasion || 'Uncategorized',
-        color:     details.color    || '',
-        imageURL:  details.imageURL || data.imageURL || '',
+        title:     data.title    || 'Untitled',
+        category:  data.category || 'Uncategorized',
+        color:     data.color    || '',
+        imageURL:  data.imageURL || '',
     };
 };
 
@@ -79,7 +74,7 @@ const Recentitems = () => {
                         orderBy('createdAt', 'desc')
                     )
                 );
-                setItems(snap.docs.map(mapOutfitDoc));
+                setItems(snap.docs.map(mapClosetDoc));
             } catch (e) {
                 console.warn('[AllitemsScreen]', e);
             } finally {

@@ -33,6 +33,7 @@ import {
 } from 'react-native-image-picker';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
+import { useAppAlert } from '../../context/AlertContext';
 import {
     getFirestore,
     collection,
@@ -223,6 +224,8 @@ const AdditemScreen = () => {
     const db   = getFirestore(app);
     const user = auth.currentUser;
 
+    const { showSuccess, showError, showAlert, showConfirm } = useAppAlert();
+
     // ── Fetch categories from Firestore
     useEffect(() => {
         if (!user) return;
@@ -247,9 +250,8 @@ const AdditemScreen = () => {
             c => c.name.toLowerCase() === name.toLowerCase() && c.id !== (excludeId ?? '__never__'),
         );
 
-    // ── Create category
     const handleCreateCategory = async (name: string) => {
-        if (isDuplicate(name)) { Alert.alert('Duplicate', `"${name}" already exists.`); return; }
+        if (isDuplicate(name)) { showAlert({ title: 'Duplicate', message: `"${name}" already exists.`, type: 'info' }); return; }
         if (!user) return;
         setCategoryLoading(true);
         try {
@@ -259,23 +261,22 @@ const AdditemScreen = () => {
             setCategory(name.trim());
             setShowCreateCard(false);
         } catch (e: any) {
-            Alert.alert('Error', e.message);
+            showError('Error', e.message);
         } finally {
             setCategoryLoading(false);
         }
     };
 
-    // ── Edit category
     const handleEditCategory = async (name: string) => {
         if (!editingCategory) return;
-        if (isDuplicate(name, editingCategory.id)) { Alert.alert('Duplicate', `"${name}" already exists.`); return; }
+        if (isDuplicate(name, editingCategory.id)) { showAlert({ title: 'Duplicate', message: `"${name}" already exists.`, type: 'info' }); return; }
         setCategoryLoading(true);
         try {
             await updateDoc(doc(db, 'categories', editingCategory.id), { name: name.trim() });
             if (category === editingCategory.name) setCategory(name.trim());
             setEditingCategory(null);
         } catch (e: any) {
-            Alert.alert('Error', e.message);
+            showError('Error', e.message);
         } finally {
             setCategoryLoading(false);
         }
@@ -283,23 +284,17 @@ const AdditemScreen = () => {
 
     // ── Delete category
     const confirmDelete = (cat: Category) => {
-        Alert.alert(
+        showConfirm(
             'Delete Category',
             `Remove "${cat.name}"? Items already tagged will keep this value.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete', style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deleteDoc(doc(db, 'categories', cat.id));
-                            if (category === cat.name) setCategory('');
-                        } catch (e: any) {
-                            Alert.alert('Error', e.message);
-                        }
-                    },
-                },
-            ],
+            async () => {
+                try {
+                    await deleteDoc(doc(db, 'categories', cat.id));
+                    if (category === cat.name) setCategory('');
+                } catch (e: any) {
+                    showError('Error', e.message);
+                }
+            }
         );
     };
 
@@ -378,9 +373,9 @@ const AdditemScreen = () => {
 
     // ── Validate form
     const validate = (): boolean => {
-        if (!imageUri)     { Alert.alert('Required', 'Please select an image first.');       return false; }
-        if (!title.trim()) { Alert.alert('Required', 'Please enter a title for the item.');  return false; }
-        if (!category)     { Alert.alert('Required', 'Please select or create a category.'); return false; }
+        if (!imageUri)     { showAlert({ title: 'Required', message: 'Please select an image first.', type: 'info' });       return false; }
+        if (!title.trim()) { showAlert({ title: 'Required', message: 'Please enter a title for the item.', type: 'info' });  return false; }
+        if (!category)     { showAlert({ title: 'Required', message: 'Please select or create a category.', type: 'info' }); return false; }
         return true;
     };
 
@@ -398,16 +393,13 @@ const AdditemScreen = () => {
                 imageURL,
                 createdAt: serverTimestamp(),
             });
-            Alert.alert('Success!', 'Item added to your closet.', [{
-                text: 'OK',
-                onPress: () => {
-                    setImageUri(null); setImageFile(null);
-                    setTitle(''); setCategory(''); setColor('');
-                    setUploadPct(0);
-                },
-            }]);
+            showSuccess('Success!', 'Item added to your closet.', () => {
+                setImageUri(null); setImageFile(null);
+                setTitle(''); setCategory(''); setColor('');
+                setUploadPct(0);
+            });
         } catch (e: any) {
-            Alert.alert('Error', e.message);
+            showError('Error', e.message);
         } finally {
             setUploading(false); setUploadPct(0);
         }

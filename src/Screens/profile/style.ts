@@ -196,4 +196,23 @@ avatarPlaceholder: {
     justifyContent:  'center',
     alignItems:      'center',
 },
+emptyFavContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 32,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    gap: 8,
+},
+emptyFavText: {
+    fontSize: 14,
+    fontFamily: 'InterMedium',
+    fontWeight: '500',
+    color: '#94A3B8',
+},
 });

@@ -274,6 +274,7 @@ import {
     getDownloadURL,
 } from '@react-native-firebase/storage';
 import { invalidateProfileCache } from './ProfileScreen';
+import { useAppAlert } from '../../context/AlertContext';
 
 // ── Validation ───────────────────────────────────────────
 const isValidEmail = (val: string) =>
@@ -302,6 +303,8 @@ const ProfileEditScreen = ({ navigation }: any) => {
     const db   = getFirestore(app);
     const user = auth.currentUser;
 
+    const { showSuccess, showError, showAlert } = useAppAlert();
+
     // ── Load existing data from Firestore ─────────────────
     useEffect(() => {
         const fetchProfile = async () => {
@@ -323,16 +326,16 @@ const ProfileEditScreen = ({ navigation }: any) => {
             }
         };
         fetchProfile();
-    }, []);
+    }, [db, user]);
 
     // ── Validation ────────────────────────────────────────
     const validate = (): boolean => {
         if (!name.trim()) {
-            Alert.alert('Validation', 'Name is required.');
+            showAlert({ title: 'Validation', message: 'Name is required.', type: 'info' });
             return false;
         }
         if (!email.trim() || !isValidEmail(email)) {
-            Alert.alert('Validation', 'Please enter a valid email address.');
+            showAlert({ title: 'Validation', message: 'Please enter a valid email address.', type: 'info' });
             return false;
         }
         return true;
@@ -429,18 +432,17 @@ const ProfileEditScreen = ({ navigation }: any) => {
             // Step 2: Firestore update
             await updateDoc(doc(db, 'users', user.uid), {
                 fullName: name.trim(),
-                email:    email.trim().toLowerCase(),
                 phone:    phone.trim(),
                 bio:      bio.trim(),
                 photoURL,
             });
 
             invalidateProfileCache(); // Force refresh on profile screen
-            Alert.alert('Success', 'Profile updated successfully!', [
-                { text: 'OK', onPress: () => navigation.goBack() },
-            ]);
+            showSuccess('Success', 'Profile updated successfully!', () => {
+                navigation.goBack();
+            });
         } catch (error: any) {
-            Alert.alert('Error', error.message);
+            showError('Error', error.message);
         } finally {
             setSaving(false);
             setUploadPct(0);
@@ -537,14 +539,15 @@ const ProfileEditScreen = ({ navigation }: any) => {
                     <View style={styles.fieldGroup}>
                         <Text style={styles.fieldLabel}>Email <Text style={styles.required}>*</Text></Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, styles.inputReadOnly]}
                             value={email}
-                            onChangeText={setEmail}
                             placeholder="Enter your email"
                             placeholderTextColor="#94a3b8"
                             keyboardType="email-address"
                             autoCapitalize="none"
+                            editable={false}
                         />
+                        <Text style={styles.helperText}>Email changes are locked for now to keep Firebase login stable.</Text>
                     </View>
 
                     {/* Phone */}
@@ -728,9 +731,18 @@ const styles = StyleSheet.create({
         fontFamily:        'InterRegular',
         color:             '#1E293B',
     },
+    inputReadOnly: {
+        color: '#64748B',
+    },
     textArea: {
         height:            90,
         textAlignVertical: 'top',
+    },
+    helperText: {
+        fontSize: 12,
+        color: '#94A3B8',
+        fontFamily: 'InterRegular',
+        marginTop: 2,
     },
 
     // ── Save Button ──────────────────────────────────────

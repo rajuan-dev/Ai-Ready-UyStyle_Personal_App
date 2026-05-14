@@ -696,7 +696,7 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         <EmptyState
                             filter={activeFilter}
                             prefs={stylePrefs}
-                            onAdd={() => navigation.navigate('Additem')}
+                            onAdd={() => navigation.navigate('Add')}
                         />
                     }
                     ListFooterComponent={

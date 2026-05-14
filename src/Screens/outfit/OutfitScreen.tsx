@@ -13,7 +13,7 @@ import {
     TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X } from 'lucide-react-native';
+import { Flame, X } from 'lucide-react-native';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
 import {
@@ -28,6 +28,10 @@ import {
     getDocs,
     deleteDoc,
     doc,
+    setDoc,
+    updateDoc,
+    increment,
+    serverTimestamp,
     QueryDocumentSnapshot,
     DocumentData,
 } from '@react-native-firebase/firestore';
@@ -42,6 +46,7 @@ type OutfitItem = {
     imageURL: string;
     userId: string;
     createdAt?: any;
+    fireCount: number;
 };
 
 const PAGE_SIZE = 10;
@@ -61,7 +66,8 @@ const mapFirestoreDoc = (d: QueryDocumentSnapshot<DocumentData>): OutfitItem => 
         title: details.title || 'Untitled',
         category: details.category || 'Uncategorized',
         color: details.color || '',
-        imageURL: details.imageURL || '', 
+        imageURL: details.imageURL || '',
+        fireCount: data.fireCount ?? 0,
     };
 };
 
@@ -76,7 +82,7 @@ const SkeletonCard = () => {
                 Animated.timing(shimmer, { toValue: 0.4, duration: 800, useNativeDriver: true }),
             ])
         ).start();
-    }, []);
+    }, [shimmer]);
 
     return (
         <Animated.View style={[styles.skeletonCard, { opacity: shimmer }]}>
@@ -89,7 +95,7 @@ const SkeletonCard = () => {
     );
 };
 
-const OutfitCard = React.memo(({ item, isActive, onCardPress, onDelete, onOutfitPress }: any) => {
+const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, onOutfitPress, onToggleFire }: any) => {
     const xScale = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -98,7 +104,7 @@ const OutfitCard = React.memo(({ item, isActive, onCardPress, onDelete, onOutfit
             useNativeDriver: true,
             friction: 8,
         }).start();
-    }, [isActive]);
+    }, [isActive, xScale]);
 
     return (
         <TouchableOpacity 
@@ -122,7 +128,17 @@ const OutfitCard = React.memo(({ item, isActive, onCardPress, onDelete, onOutfit
                 </View>
                 <View style={styles.itemInfo}>
                     <Text style={styles.itemName} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.itemMeta} numberOfLines={1}>{item.category} • {item.color}</Text>
+                    <View style={styles.itemMetaRow}>
+                        <Text style={styles.itemMeta} numberOfLines={1}>{item.category} • {item.color}</Text>
+                        <TouchableOpacity
+                            style={[styles.fireBtn, fired && styles.fireBtnActive]}
+                            activeOpacity={0.8}
+                            onPress={() => onToggleFire(item.id)}
+                        >
+                            <Flame size={12} color={fired ? '#EA580C' : '#FB923C'} fill={fired ? '#EA580C' : 'transparent'} />
+                            <Text style={styles.fireCount}>{item.fireCount ?? 0}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </TouchableOpacity>
@@ -140,8 +156,8 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
-    const [error, setError] = useState<Error | null>(null);
     const [activeCardId, setActiveCardId] = useState<string | null>(null);
+    const [firedIds, setFiredIds] = useState<Set<string>>(new Set());
 
     const unsubscribeRef = useRef<(() => void) | null>(null);
     const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -150,7 +166,6 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
     const subscribe = useCallback(() => {
         if (!user) return;
         setLoading(true);
-        setError(null);
 
         const q = query(
             collection(db, 'outfits'),
@@ -166,15 +181,23 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
             setHasMore(snapshot.docs.length === PAGE_SIZE);
             setLoading(false);
         }, (err) => {
-            setError(err);
+            console.warn('[OutfitScreen]', err);
             setLoading(false);
         });
-    }, [user?.uid]);
+    }, [db, user]);
 
     useEffect(() => {
         subscribe();
         return () => unsubscribeRef.current?.();
     }, [subscribe]);
+
+    useEffect(() => {
+        if (!user) return;
+        const firesQuery = query(collection(db, 'outfitFires'), where('userId', '==', user.uid));
+        return onSnapshot(firesQuery, snapshot => {
+            setFiredIds(new Set(snapshot.docs.map(d => d.data().outfitId as string)));
+        });
+    }, [db, user]);
 
     // Pagination
     const loadMore = async () => {
@@ -213,6 +236,46 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
             }
         ]);
     };
+
+    const handleToggleFire = useCallback(async (outfitId: string) => {
+        if (!user) return;
+        const isFired = firedIds.has(outfitId);
+        const delta = isFired ? -1 : 1;
+
+        setItems(prev =>
+            prev.map(item =>
+                item.id === outfitId
+                    ? { ...item, fireCount: Math.max(0, (item.fireCount ?? 0) + delta) }
+                    : item,
+            ),
+        );
+
+        try {
+            const fireRef = doc(db, 'outfitFires', `${user.uid}_${outfitId}`);
+            const outfitRef = doc(db, 'outfits', outfitId);
+
+            if (isFired) {
+                await deleteDoc(fireRef);
+                await updateDoc(outfitRef, { fireCount: increment(-1) });
+            } else {
+                await setDoc(fireRef, {
+                    userId: user.uid,
+                    outfitId,
+                    createdAt: serverTimestamp(),
+                });
+                await updateDoc(outfitRef, { fireCount: increment(1) });
+            }
+        } catch (err) {
+            setItems(prev =>
+                prev.map(item =>
+                    item.id === outfitId
+                        ? { ...item, fireCount: Math.max(0, (item.fireCount ?? 0) - delta) }
+                        : item,
+                ),
+            );
+            console.warn('[Outfit fire]', err);
+        }
+    }, [db, firedIds, user]);
 
     // Filter Logic
     const categories = useMemo(() => ['All', ...new Set(items.map(i => i.category))].sort(), [items]);
@@ -255,9 +318,11 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                             <OutfitCard
                                 item={item}
                                 isActive={activeCardId === item.id}
+                                fired={firedIds.has(item.id)}
                                 onCardPress={setActiveCardId}
                                 onDelete={handleDelete}
                                 onOutfitPress={onOutfitPress}
+                                onToggleFire={handleToggleFire}
                             />
                         )}
                         ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} /> : null}
