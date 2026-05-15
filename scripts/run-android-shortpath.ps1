@@ -43,8 +43,24 @@ function Initialize-AndroidSdk {
     }
 }
 
+function Clear-AndroidNodeModuleBuildDirs {
+    $nodeModulesDir = Join-Path $projectRoot "node_modules"
+
+    if (-not (Test-Path $nodeModulesDir)) {
+        return
+    }
+
+    Get-ChildItem -Path $nodeModulesDir -Directory -Recurse -Filter build -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -like "*\android\build" } |
+        ForEach-Object {
+            attrib -R $_.FullName /S /D 2>$null | Out-Null
+            Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+}
+
 try {
     Initialize-AndroidSdk
+    Clear-AndroidNodeModuleBuildDirs
     Push-Location $projectRoot
     & npx expo run:android @ExpoArgs
 

@@ -3,9 +3,12 @@
     "name": "Ustyle",
     "slug": "ustyle",
     "icon": "./assets/icon.png",
+    "plugins": [
+      "./plugins/withAndroidPortability"
+    ],
     "android": {
       "package": "com.rajuan.dev.personal_stylist_app",
-      "googleServicesFile": "./android/app/google-services.json",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -19,6 +22,11 @@
     },
     "ios": {
       "icon": "./assets/icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3873daa6-bd65-4bef-9486-7a56a9ce5442"
+      }
     }
   }
 }
