@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "844436071910",
+    "project_id": "ustyle-2d7b5",
+    "storage_bucket": "ustyle-2d7b5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:844436071910:android:5132095b53de3f98b1a227",
+        "android_client_info": {
+          "package_name": "com.rajuan.dev.personal_stylist_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "844436071910-quf9t92itq4nb5bqdjq1hk58n1gcdsrv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8kjzxKmZ5wIuTidcY2UPyFjzGK1WGdgk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "844436071910-quf9t92itq4nb5bqdjq1hk58n1gcdsrv.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "844436071910-8jolfl2b0pr1u7lkltk7hqod3quo1vkl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ustyle.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
