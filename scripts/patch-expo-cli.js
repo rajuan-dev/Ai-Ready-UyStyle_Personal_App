@@ -303,7 +303,10 @@ function upperFirst(name) {
 
   if (!patched.includes("function _child_process()")) {
     if (!patched.includes(pathFsHelper)) {
-      throw new Error("[patch-expo-cli] Expected Expo CLI gradle path/fs helper block was not found");
+      console.warn(
+        "[patch-expo-cli] Skipping Android SDK bootstrap patch because Expo CLI gradle helper block was not found"
+      );
+      return false;
     }
     patched = patched.replace(pathFsHelper, childProcessHelper);
   }
@@ -314,7 +317,10 @@ function upperFirst(name) {
     return name.charAt(0).toUpperCase() + name.slice(1);
 }`;
     if (!patched.includes(debugBlock)) {
-      throw new Error("[patch-expo-cli] Expected Expo CLI gradle debug block was not found");
+      console.warn(
+        "[patch-expo-cli] Skipping Android SDK bootstrap patch because Expo CLI gradle debug block was not found"
+      );
+      return false;
     }
     patched = patched.replace(debugBlock, helperBlock);
   } else {
@@ -342,6 +348,5 @@ try {
     console.log("[patch-expo-cli] Expo CLI patches already applied");
   }
 } catch (error) {
-  console.error(error.message || error);
-  process.exit(1);
+  console.warn(`[patch-expo-cli] Non-fatal patch error: ${error.message || error}`);
 }
