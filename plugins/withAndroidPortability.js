@@ -56,6 +56,10 @@ function withAndroidLocalProperties(config) {
 }
 
 function withNodeModuleBuildRedirect(config) {
+  if (process.platform !== "win32") {
+    return config;
+  }
+
   return withProjectBuildGradle(config, (modConfig) => {
     if (modConfig.modResults.language !== "groovy") {
       return modConfig;
