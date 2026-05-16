@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth, sendEmailVerification, signOut } from '@react-native-firebase/auth';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, CheckCircle2, ArrowRight, RefreshCcw, LogOut, ShieldCheck, MailCheck } from 'lucide-react-native';
+import { Mail, CheckCircle2, ArrowRight, RefreshCcw, LogOut, ShieldCheck, MailCheck, ChevronLeft } from 'lucide-react-native';
 
 const VerifyEmailScreen = () => {
   const { user, refreshUser } = useAuth();
@@ -74,6 +74,22 @@ const VerifyEmailScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Top Header with Back Button */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity 
+          onPress={handleSignOut} 
+          style={styles.backButton}
+          disabled={signingOut}
+        >
+          {signingOut ? (
+            <ActivityIndicator size="small" color="#0F172A" />
+          ) : (
+            <ChevronLeft size={28} color="#0F172A" />
+          )}
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.keyboard}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -184,6 +200,20 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  topHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 50,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -10, // Adjust for icon padding
   },
   keyboard: {
     flex: 1,
