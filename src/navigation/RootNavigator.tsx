@@ -57,6 +57,7 @@ import OnBoardingScreen     from '../Screens/Onbording/OnBordingScreen';
 import SignupScreen          from '../Screens/signup/SignupScreen';
 import SignInScreen          from '../Screens/signin/SignInScreen';
 import ForgotPasswordScreen  from '../Screens/signin/ForgotPasswordScreen';
+import VerifyEmailScreen from '../Screens/signin/VerifyEmailScreen';
 
 // App Screens
 import BottomBar             from './BottomBar';
@@ -81,14 +82,21 @@ import Recentitems from '../Screens/Recentitems/Recentitems';
 const Stack = createNativeStackNavigator();
 
 // Logged out — first-time users see onboarding, returning users see sign-in
-const AuthStack = ({ hasAccount }: { hasAccount: boolean }) => (
+const AuthStack = ({
+  hasAccount,
+  isPendingVerification,
+}: {
+  hasAccount: boolean;
+  isPendingVerification: boolean;
+}) => (
   <Stack.Navigator screenOptions={{ headerShown: false }}
-    initialRouteName={hasAccount ? 'signin' : 'onboarding'}
+    initialRouteName={isPendingVerification ? 'verifyEmail' : hasAccount ? 'signin' : 'onboarding'}
   >
     <Stack.Screen name="onboarding" component={OnBoardingScreen} />
     <Stack.Screen name="signup"  component={SignupScreen} />
     <Stack.Screen name="signin"  component={SignInScreen} />
     <Stack.Screen name="forgotPassword" component={ForgotPasswordScreen} />
+    <Stack.Screen name="verifyEmail" component={VerifyEmailScreen} />
   </Stack.Navigator>
 );
 
@@ -118,13 +126,17 @@ const AppStack = () => (
 const RootNavigator = () => {
   const { user, loading, hasAccount } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
+  const isVerified = !!user?.emailVerified;
+  const isPendingVerification = !!user && !isVerified;
 
   // Keep showing splash screen until minimum time elapsed (3s) OR user context finished loading
   if (!splashDone || loading) {
     return <SplashScreen onFinish={() => setSplashDone(true)} />;
   }
 
-  return user ? <AppStack /> : <AuthStack hasAccount={hasAccount} />;
+  return isVerified
+    ? <AppStack />
+    : <AuthStack hasAccount={hasAccount} isPendingVerification={isPendingVerification} />;
 };
 
 export default RootNavigator;

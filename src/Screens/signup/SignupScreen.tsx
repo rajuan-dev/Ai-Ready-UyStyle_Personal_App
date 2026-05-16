@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './style';
 import { getApp } from '@react-native-firebase/app';
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from '@react-native-firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from '@react-native-firebase/auth';
 import { getFirestore, collection, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
 
 const EyeIcon = ({ visible }: { visible: boolean }) => (
@@ -86,6 +86,8 @@ const SignupScreen = ({ navigation }: any) => {
         await updateProfile(userCredential.user, {
           displayName: fullName.trim(),
         });
+
+        await sendEmailVerification(userCredential.user);
       } catch (profileError) {
         console.error('[Signup] profile setup error:', profileError);
         Alert.alert(
@@ -94,7 +96,7 @@ const SignupScreen = ({ navigation }: any) => {
         );
       }
 
-      //  navigate() nai — onAuthStateChanged → AppStack → Home
+      navigation.replace('verifyEmail');
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {

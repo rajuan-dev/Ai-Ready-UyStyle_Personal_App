@@ -8,12 +8,14 @@ type AuthContextType = {
   user:       FirebaseAuthTypes.User | null;
   loading:    boolean;
   hasAccount: boolean; // আগে account ছিল কিনা
+  refreshUser: () => Promise<FirebaseAuthTypes.User | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user:       null,
   loading:    true,
   hasAccount: false,
+  refreshUser: async () => null,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -44,8 +46,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe;
   }, []);
 
+  const refreshUser = async () => {
+    const auth = getAuth(getApp());
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      setUser(null);
+      return null;
+    }
+
+    await currentUser.reload();
+    const refreshedUser = auth.currentUser;
+    setUser(refreshedUser);
+    return refreshedUser;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, hasAccount }}>
+    <AuthContext.Provider value={{ user, loading, hasAccount, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

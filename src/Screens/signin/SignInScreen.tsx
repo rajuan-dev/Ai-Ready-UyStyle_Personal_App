@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../signup/style';
 import { getApp } from '@react-native-firebase/app';
-import { getAuth, signInWithEmailAndPassword } from '@react-native-firebase/auth';
+import { getAuth, sendEmailVerification, signInWithEmailAndPassword } from '@react-native-firebase/auth';
 
 const EyeIcon = ({ visible }: { visible: boolean }) => (
   <View>
@@ -46,9 +46,12 @@ const SignInScreen = ({ navigation }: any) => {
     setLoading(true);
     try {
       const auth = getAuth(getApp());
-      await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+      const credentials = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
 
-      // ✅ navigate() লাগবে না — onAuthStateChanged নিজেই AppStack-এ নিয়ে যাবে
+      if (!credentials.user.emailVerified) {
+        await sendEmailVerification(credentials.user).catch(() => null);
+        navigation.replace('verifyEmail');
+      }
 
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {

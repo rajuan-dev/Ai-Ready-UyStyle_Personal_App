@@ -72,14 +72,17 @@ function withNodeModuleBuildRedirect(config) {
     modConfig.modResults.contents += `
 
 // ${BUILD_DIR_REDIRECT_TAG}
-def ustyleNodeModulesDir = new File(rootProject.projectDir, "../node_modules").canonicalFile
-subprojects { subproject ->
-  def subprojectDir = subproject.projectDir.canonicalFile
-  if (subprojectDir.path.startsWith(ustyleNodeModulesDir.path + File.separator)) {
-    def safeProjectName = subproject.path.replace(':', '_')
-    subproject.layout.buildDirectory.set(
-      new File(rootProject.layout.buildDirectory.asFile.get(), "node-modules-android/" + safeProjectName)
-    )
+def ustyleNewArchEnabled = (findProperty('newArchEnabled') ?: 'false').toBoolean()
+if (System.properties['os.name'].toLowerCase().contains('windows') && !ustyleNewArchEnabled) {
+  def ustyleNodeModulesDir = new File(rootProject.projectDir, "../node_modules").canonicalFile
+  subprojects { subproject ->
+    def subprojectDir = subproject.projectDir.canonicalFile
+    if (subprojectDir.path.startsWith(ustyleNodeModulesDir.path + File.separator)) {
+      def safeProjectName = subproject.path.replace(':', '_')
+      subproject.layout.buildDirectory.set(
+        new File(rootProject.layout.buildDirectory.asFile.get(), "node-modules-android/" + safeProjectName)
+      )
+    }
   }
 }
 `;
