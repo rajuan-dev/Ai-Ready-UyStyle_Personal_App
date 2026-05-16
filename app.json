@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ustyle",
     "slug": "ustyle",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon.png",
     "plugins": [
       "./plugins/withAndroidPortability"
     ],
@@ -11,7 +11,7 @@
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/adaptive-app-icon.png",
         "backgroundColor": "#FFFFFF"
       }
     },
@@ -21,7 +21,7 @@
       "visible": "sticky-immersive"
     },
     "ios": {
-      "icon": "./assets/icon.png"
+      "icon": "./assets/app-icon.png"
     },
     "extra": {
       "eas": {

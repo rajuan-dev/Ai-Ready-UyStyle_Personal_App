@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApp } from '@react-native-firebase/app';
-import { getAuth, sendEmailVerification, signOut } from '@react-native-firebase/auth';
-import { useAuth } from '../../context/AuthContext';
+import { getAuth, sendEmailVerification, signOut, deleteUser } from '@react-native-firebase/auth';
+import { clearPendingRegistration, setHasAccountFlag } from '../../auth/authStorage';
+import { useAuth } from '../../context';
 import { Mail, CheckCircle2, ArrowRight, RefreshCcw, LogOut, ShieldCheck, MailCheck, ChevronLeft } from 'lucide-react-native';
 
-const VerifyEmailScreen = () => {
+const VerifyEmailScreen = ({ navigation }: any) => {
   const { user, refreshUser } = useAuth();
   const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
@@ -61,11 +62,38 @@ const VerifyEmailScreen = () => {
   };
 
   const handleSignOut = async () => {
+    if (signingOut) {
+      return;
+    }
+
     setSigningOut(true);
     try {
-      await signOut(getAuth(getApp()));
+      const auth = getAuth(getApp());
+      const currentUser = auth.currentUser;
+      await setHasAccountFlag(true);
+      await clearPendingRegistration();
+
+      if (currentUser && !currentUser.emailVerified) {
+        try {
+          await deleteUser(currentUser);
+        } catch (error: any) {
+          if (error?.code !== 'auth/requires-recent-login') {
+            throw error;
+          }
+        }
+      }
+
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
+
+      navigation.replace('signin');
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to sign out.');
+      if (error?.code !== 'auth/no-current-user') {
+        Alert.alert('Error', error?.message || 'Failed to sign out.');
+      }
+
+      navigation.replace('signin');
     } finally {
       setSigningOut(false);
     }

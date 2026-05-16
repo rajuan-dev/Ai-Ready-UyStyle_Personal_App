@@ -17,8 +17,7 @@
 
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { AuthProvider } from './src/context/AuthContext';
-import { AlertProvider } from './src/context/AlertContext';
+import { AlertProvider, AuthProvider } from './src/context';
 import RootNavigator from './src/navigation/RootNavigator';
 
 const App = () => {

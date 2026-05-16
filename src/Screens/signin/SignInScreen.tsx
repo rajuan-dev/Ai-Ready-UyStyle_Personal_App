@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../signup/style';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth, sendEmailVerification, signInWithEmailAndPassword } from '@react-native-firebase/auth';
+import { setHasAccountFlag } from '../../auth/authStorage';
 
 const EyeIcon = ({ visible }: { visible: boolean }) => (
   <View>
@@ -47,10 +48,12 @@ const SignInScreen = ({ navigation }: any) => {
     try {
       const auth = getAuth(getApp());
       const credentials = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+      await setHasAccountFlag(true);
 
       if (!credentials.user.emailVerified) {
         await sendEmailVerification(credentials.user).catch(() => null);
         navigation.replace('verifyEmail');
+        return;
       }
 
     } catch (error: any) {
@@ -100,6 +103,10 @@ const SignInScreen = ({ navigation }: any) => {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="username"
+                  importantForAutofill="yes"
+                  returnKeyType="next"
                 />
               </View>
             </View>
@@ -116,6 +123,10 @@ const SignInScreen = ({ navigation }: any) => {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="password"
+                  textContentType="password"
+                  importantForAutofill="yes"
+                  returnKeyType="done"
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}

@@ -49,7 +49,7 @@
 
 import React, { useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context';
 import SplashScreen from '../Screens/splash/Splashscreen';
 
 // Auth Screens
@@ -88,21 +88,27 @@ const AuthStack = ({
 }: {
   hasAccount: boolean;
   isPendingVerification: boolean;
-}) => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}
-    initialRouteName={isPendingVerification ? 'verifyEmail' : hasAccount ? 'signin' : 'onboarding'}
-  >
-    <Stack.Screen name="onboarding" component={OnBoardingScreen} />
-    <Stack.Screen name="signup"  component={SignupScreen} />
-    <Stack.Screen name="signin"  component={SignInScreen} />
-    <Stack.Screen name="forgotPassword" component={ForgotPasswordScreen} />
-    <Stack.Screen name="verifyEmail" component={VerifyEmailScreen} />
-  </Stack.Navigator>
-);
+}) => {
+  const initialRouteName = isPendingVerification ? 'verifyEmail' : hasAccount ? 'signin' : 'onboarding';
+
+  return (
+    <Stack.Navigator
+      id="auth-stack"
+      screenOptions={{ headerShown: false }}
+      initialRouteName={initialRouteName}
+    >
+      <Stack.Screen name="onboarding" component={OnBoardingScreen} />
+      <Stack.Screen name="signup"  component={SignupScreen} />
+      <Stack.Screen name="signin"  component={SignInScreen} />
+      <Stack.Screen name="forgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="verifyEmail" component={VerifyEmailScreen} />
+    </Stack.Navigator>
+  );
+};
 
 //  Logged in → Home first
 const AppStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator id="app-stack" screenOptions={{ headerShown: false }}>
     <Stack.Screen name="bottombar"       component={BottomBar} />
     <Stack.Screen name="profileedit"     component={ProfileEditScreen} />
     <Stack.Screen name="ChangePassword"     component={ChangePasswordScreen} />
@@ -128,7 +134,6 @@ const RootNavigator = () => {
   const [splashDone, setSplashDone] = useState(false);
   const isVerified = !!user?.emailVerified;
   const isPendingVerification = !!user && !isVerified;
-
   // Keep showing splash screen until minimum time elapsed (3s) OR user context finished loading
   if (!splashDone || loading) {
     return <SplashScreen onFinish={() => setSplashDone(true)} />;
@@ -136,7 +141,10 @@ const RootNavigator = () => {
 
   return isVerified
     ? <AppStack />
-    : <AuthStack hasAccount={hasAccount} isPendingVerification={isPendingVerification} />;
+    : <AuthStack
+        hasAccount={hasAccount}
+        isPendingVerification={isPendingVerification}
+      />;
 };
 
 export default RootNavigator;

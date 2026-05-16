@@ -25,6 +25,7 @@ const BottomTabs = () => {
 
     return (
         <Tab.Navigator
+            id="bottom-tabs"
             screenOptions={({ route }) => ({
                 headerShown: false,
                 tabBarHideOnKeyboard: true,

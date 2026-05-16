@@ -1,43 +1,94 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getApp } from '@react-native-firebase/app';
-import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, reload } from '@react-native-firebase/auth';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
+import {
+  clearPendingRegistration,
+  getHasAccountFlag,
+  getPendingRegistration,
+  setHasAccountFlag,
+} from '../auth/authStorage';
 
 type AuthContextType = {
-  user:       FirebaseAuthTypes.User | null;
-  loading:    boolean;
-  hasAccount: boolean; // আগে account ছিল কিনা
+  user: FirebaseAuthTypes.User | null;
+  loading: boolean;
+  hasAccount: boolean;
   refreshUser: () => Promise<FirebaseAuthTypes.User | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({
-  user:       null,
-  loading:    true,
+  user: null,
+  loading: true,
   hasAccount: false,
   refreshUser: async () => null,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user,       setUser]       = useState<FirebaseAuthTypes.User | null>(null);
-  const [loading,    setLoading]    = useState(true);
+  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [hasAccount, setHasAccount] = useState(false);
+
+  const ensureUserProfile = async (firebaseUser: FirebaseAuthTypes.User) => {
+    if (!firebaseUser.emailVerified) return;
+
+    const db = getFirestore(getApp());
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const existingProfile = await getDoc(userRef);
+    const normalizedEmail = firebaseUser.email?.trim().toLowerCase() || '';
+    const pendingProfile = await getPendingRegistration();
+
+    const profilePayload: Record<string, unknown> = {
+      fullName: firebaseUser.displayName?.trim() || '',
+      email: normalizedEmail,
+    };
+
+    if (
+      pendingProfile &&
+      pendingProfile.uid === firebaseUser.uid &&
+      pendingProfile.email === normalizedEmail
+    ) {
+      profilePayload.fullName = pendingProfile.fullName;
+    }
+
+    if (!existingProfile.exists()) {
+      profilePayload.createdAt = serverTimestamp();
+    }
+
+    await setDoc(userRef, profilePayload, { merge: true });
+
+    if (
+      pendingProfile &&
+      pendingProfile.uid === firebaseUser.uid &&
+      pendingProfile.email === normalizedEmail
+    ) {
+      await clearPendingRegistration();
+    }
+  };
 
   useEffect(() => {
     const checkAccount = async () => {
-      const flag = await AsyncStorage.getItem('hasAccount');
-      if (flag === 'true') setHasAccount(true);
+      const flag = await getHasAccountFlag();
+      if (flag) {
+        setHasAccount(true);
+      }
     };
+
     checkAccount();
 
-    const auth        = getAuth(getApp());
+    const auth = getAuth(getApp());
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
-      // User login/signup করলে flag save করো
-      if (firebaseUser) {
-        await AsyncStorage.setItem('hasAccount', 'true');
+      if (firebaseUser?.emailVerified) {
+        await setHasAccountFlag(true);
         setHasAccount(true);
+
+        try {
+          await ensureUserProfile(firebaseUser);
+        } catch (error) {
+          console.error('[AuthContext] Failed to ensure user profile:', error);
+        }
       }
 
       setLoading(false);
@@ -55,9 +106,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return null;
     }
 
-    await currentUser.reload();
+    await reload(currentUser);
     const refreshedUser = auth.currentUser;
     setUser(refreshedUser);
+
+    if (refreshedUser?.emailVerified) {
+      try {
+        await ensureUserProfile(refreshedUser);
+      } catch (error) {
+        console.error('[AuthContext] Failed to ensure user profile after refresh:', error);
+      }
+    }
+
     return refreshedUser;
   };
 

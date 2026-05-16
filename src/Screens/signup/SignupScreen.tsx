@@ -1,7 +1,3 @@
-
-
-
-
 import { Eye, EyeOff } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -16,10 +12,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { styles } from './style';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from '@react-native-firebase/auth';
-import { getFirestore, collection, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
+import { getPendingRegistration, setPendingRegistration } from '../../auth/authStorage';
+import { styles } from './style';
 
 const EyeIcon = ({ visible }: { visible: boolean }) => (
   <View>
@@ -30,13 +26,13 @@ const EyeIcon = ({ visible }: { visible: boolean }) => (
 );
 
 const SignupScreen = ({ navigation }: any) => {
-  const [fullName,         setFullName]         = useState('');
-  const [email,            setEmail]            = useState('');
-  const [password,         setPassword]         = useState('');
-  const [confirmPassword,  setConfirmPassword]  = useState('');
-  const [showPassword,     setShowPassword]     = useState(false);
-  const [showConfirm,      setShowConfirm]      = useState(false);
-  const [loading,          setLoading]          = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const validate = () => {
     if (!fullName.trim()) {
@@ -62,45 +58,53 @@ const SignupScreen = ({ navigation }: any) => {
     if (!validate()) return;
 
     setLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-      const app          = getApp();
-      const authInstance = getAuth(app);
-      const db           = getFirestore(app);
-
+      const authInstance = getAuth(getApp());
       const userCredential = await createUserWithEmailAndPassword(
         authInstance,
         normalizedEmail,
         password
       );
 
-      const uid = userCredential.user.uid;
-
       try {
-        await setDoc(doc(collection(db, 'users'), uid), {
-          fullName:  fullName.trim(),
-          email:     normalizedEmail,
-          createdAt: serverTimestamp(),
-        }, { merge: true });
-
         await updateProfile(userCredential.user, {
           displayName: fullName.trim(),
         });
 
+        await setPendingRegistration({
+          uid: userCredential.user.uid,
+          email: normalizedEmail,
+          fullName: fullName.trim(),
+        });
+
         await sendEmailVerification(userCredential.user);
       } catch (profileError) {
-        console.error('[Signup] profile setup error:', profileError);
+        console.error('[Signup] verification setup error:', profileError);
         Alert.alert(
-          'Account created',
-          'Your account was created, but we could not finish setting up your profile. Please log in again. If this keeps happening, contact support.'
+          'Verification email failed',
+          'We created your auth account, but could not complete the verification setup. Please sign in again and resend the email.'
         );
       }
 
       navigation.replace('verifyEmail');
-
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
-        Alert.alert('Error', 'Email already registered. Please log in or reset your password.');
+        const auth = getAuth(getApp());
+        const pendingRegistration = await getPendingRegistration();
+        const isCurrentPendingUser = auth.currentUser?.email?.trim().toLowerCase() === normalizedEmail
+          && !auth.currentUser?.emailVerified;
+        const isStoredPendingUser = pendingRegistration?.email === normalizedEmail;
+
+        if (isCurrentPendingUser || isStoredPendingUser) {
+          if (auth.currentUser && !auth.currentUser.emailVerified) {
+            await sendEmailVerification(auth.currentUser).catch(() => null);
+          }
+
+          navigation.replace('verifyEmail');
+        } else {
+          Alert.alert('Error', 'Email already registered. Please log in or reset your password.');
+        }
       } else if (error.code === 'auth/invalid-email') {
         Alert.alert('Error', 'Please enter a valid email address');
       } else if (error.code === 'auth/weak-password') {
@@ -126,14 +130,11 @@ const SignupScreen = ({ navigation }: any) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Create your account</Text>
             <Text style={styles.subtitle}>Start building your digital wardrobe today.</Text>
           </View>
 
-          {/* Form */}
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Full Name</Text>
@@ -146,6 +147,10 @@ const SignupScreen = ({ navigation }: any) => {
                   onChangeText={setFullName}
                   autoCapitalize="words"
                   autoCorrect={false}
+                  autoComplete="name"
+                  textContentType="name"
+                  importantForAutofill="yes"
+                  returnKeyType="next"
                 />
               </View>
             </View>
@@ -162,6 +167,10 @@ const SignupScreen = ({ navigation }: any) => {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  importantForAutofill="yes"
+                  returnKeyType="next"
                 />
               </View>
             </View>
@@ -178,6 +187,11 @@ const SignupScreen = ({ navigation }: any) => {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  importantForAutofill="yes"
+                  passwordRules="minlength: 6;"
+                  returnKeyType="next"
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -201,6 +215,11 @@ const SignupScreen = ({ navigation }: any) => {
                   secureTextEntry={!showConfirm}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  importantForAutofill="yes"
+                  passwordRules="minlength: 6;"
+                  returnKeyType="done"
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -215,7 +234,6 @@ const SignupScreen = ({ navigation }: any) => {
 
           <View style={styles.spacer} />
 
-          {/* Footer */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.nextButton, loading && { opacity: 0.7 }]}
@@ -225,17 +243,15 @@ const SignupScreen = ({ navigation }: any) => {
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.nextButtonText}>Create Account</Text>
-              }
+                : <Text style={styles.nextButtonText}>Create Account</Text>}
             </TouchableOpacity>
 
-                       <Text style={styles.termsText2}>
-               By creating an account, you agree to our{' '}          
-                 <Text style={styles.termsLink}>Terms of Service</Text> and Privacy
+            <Text style={styles.termsText2}>
+              By creating an account, you agree to our{' '}
+              <Text style={styles.termsLink}>Terms of Service</Text> and Privacy
               Policy.
-           </Text>
+            </Text>
 
-                       {/* Sign in */}
             <Text style={styles.termsText}>
               Already have an account?{' '}
               <Text
@@ -246,7 +262,6 @@ const SignupScreen = ({ navigation }: any) => {
               </Text>
             </Text>
           </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
