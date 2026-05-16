@@ -6,10 +6,16 @@
     "plugins": [
       "./plugins/withAndroidPortability"
     ],
+    "version": "1.0.0",
     "android": {
       "package": "com.rajuan.dev.personal_stylist_app",
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-app-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -21,7 +27,14 @@
       "visible": "sticky-immersive"
     },
     "ios": {
-      "icon": "./assets/app-icon.png"
+      "icon": "./assets/app-icon.png",
+      "bundleIdentifier": "com.ustyle.app",
+      "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app requires camera access to take photos of your clothing items and profile pictures.",
+        "NSPhotoLibraryUsageDescription": "This app requires photo library access to choose images of your clothing items."
+      }
     },
     "extra": {
       "eas": {

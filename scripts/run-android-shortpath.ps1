@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $androidDir = Join-Path $projectRoot "android"
+$applicationId = "com.rajuan.dev.personal_stylist_app"
 $sdkCandidates = @(
     $env:ANDROID_HOME,
     $env:ANDROID_SDK_ROOT,
@@ -58,9 +59,57 @@ function Clear-AndroidNodeModuleBuildDirs {
         }
 }
 
+function Get-AdbPath {
+    $adbCandidates = @(
+        (Join-Path $env:ANDROID_HOME "platform-tools\adb.exe"),
+        (Join-Path $env:ANDROID_SDK_ROOT "platform-tools\adb.exe"),
+        "adb"
+    ) | Where-Object { $_ }
+
+    foreach ($candidate in $adbCandidates) {
+        if ($candidate -eq "adb") {
+            $adbCommand = Get-Command adb -ErrorAction SilentlyContinue
+            if ($adbCommand) {
+                return $adbCommand.Source
+            }
+            continue
+        }
+
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Remove-ConflictingInstalledApp {
+    $adbPath = Get-AdbPath
+    if (-not $adbPath) {
+        return
+    }
+
+    $deviceLines = & $adbPath devices 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $deviceLines) {
+        return
+    }
+
+    $deviceIds = $deviceLines |
+        Select-Object -Skip 1 |
+        Where-Object { $_ -match "\tdevice$" } |
+        ForEach-Object { ($_ -split "\t")[0].Trim() } |
+        Where-Object { $_ }
+
+    foreach ($deviceId in $deviceIds) {
+        Write-Host "Removing conflicting install from $deviceId if present..."
+        & $adbPath -s $deviceId uninstall $applicationId 2>$null | Out-Null
+    }
+}
+
 try {
     Initialize-AndroidSdk
     Clear-AndroidNodeModuleBuildDirs
+    Remove-ConflictingInstalledApp
     Push-Location $projectRoot
     & npx expo run:android @ExpoArgs
 
