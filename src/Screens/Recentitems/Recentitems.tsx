@@ -10,9 +10,11 @@ import {
     ActivityIndicator,
     StyleSheet,
     Dimensions,
+    Pressable,
+    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Shirt } from 'lucide-react-native';
+import { ArrowLeft, Shirt, X, Pencil } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
@@ -62,6 +64,7 @@ const Recentitems = () => {
 
     const [items,   setItems]   = useState<closetItems[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedItem, setSelectedItem] = useState<closetItems | null>(null);
 
     useEffect(() => {
         if (!user) return;
@@ -85,7 +88,11 @@ const Recentitems = () => {
     }, []);
 
     const renderItem = ({ item }: { item: closetItems}) => (
-        <View style={s.card}>
+        <TouchableOpacity 
+            style={s.card}
+            activeOpacity={0.88}
+            onPress={() => setSelectedItem(item)}
+        >
             {item.imageURL ? (
                 <Image source={{ uri: item.imageURL }} style={s.cardImage} resizeMode="cover" />
             ) : (
@@ -99,7 +106,7 @@ const Recentitems = () => {
                     {item.category}{item.color ? ` · ${item.color}` : ''}
                 </Text>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     return (
@@ -141,6 +148,68 @@ const Recentitems = () => {
                         <Text style={s.countText}>{items.length} closetItems</Text>
                     }
                 />
+            )}
+
+            {selectedItem && (
+                <View style={modalStyles.overlay}>
+                    <Pressable
+                        style={StyleSheet.absoluteFill}
+                        onPress={() => setSelectedItem(null)}
+                    />
+                    <Animated.View style={modalStyles.content}>
+                        <TouchableOpacity
+                            style={modalStyles.closeBtn}
+                            onPress={() => setSelectedItem(null)}
+                        >
+                            <X size={20} color="#0F1729" />
+                        </TouchableOpacity>
+
+                        <Image
+                            source={{ uri: selectedItem.imageURL }}
+                            style={modalStyles.image}
+                            resizeMode="cover"
+                        />
+                        <View style={modalStyles.info}>
+                            <Text style={modalStyles.title}>{selectedItem.title}</Text>
+                            <Text style={modalStyles.meta}>
+                                {selectedItem.category} • {selectedItem.color}
+                            </Text>
+
+                            <View style={modalStyles.actionRow}>
+                                <TouchableOpacity
+                                    style={modalStyles.editBtn}
+                                    onPress={() => {
+                                        const item = selectedItem;
+                                        setSelectedItem(null);
+                                        try {
+                                            navigation.navigate('AddItemEditor', { initialItem: item });
+                                        } catch (e) {
+                                            navigation.getParent()?.navigate('AddItemEditor', { initialItem: item });
+                                        }
+                                    }}
+                                >
+                                    <Pencil size={16} color="#0F1729" />
+                                    <Text style={modalStyles.editBtnText}>Edit Details</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={modalStyles.outfitBtn}
+                                    onPress={() => {
+                                        const item = selectedItem;
+                                        setSelectedItem(null);
+                                        try {
+                                            navigation.navigate('combine', { initialItem: item });
+                                        } catch (e) {
+                                            navigation.getParent()?.navigate('combine', { initialItem: item });
+                                        }
+                                    }}
+                                >
+                                    <Text style={modalStyles.outfitBtnText}>Create Outfit</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Animated.View>
+                </View>
             )}
         </SafeAreaView>
     );
@@ -199,6 +268,88 @@ const s = StyleSheet.create({
     },
     emptyText: {
         fontSize: 14, fontFamily: 'InterRegular', color: '#94A3B8',
+    },
+});
+
+const modalStyles = StyleSheet.create({
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+        zIndex: 1000,
+        elevation: 1000,
+    },
+    content: {
+        width: '100%',
+        maxWidth: 420,
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    closeBtn: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        zIndex: 10,
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        borderRadius: 20,
+        padding: 8,
+    },
+    image: {
+        width: '100%',
+        height: 280,
+        backgroundColor: '#f1f5f9',
+    },
+    info: {
+        padding: 24,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#0F1729',
+        marginBottom: 4,
+    },
+    meta: {
+        fontSize: 14,
+        color: '#64748B',
+        marginBottom: 20,
+    },
+    actionRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    editBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        height: 52,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        backgroundColor: '#F8FAFC',
+    },
+    editBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0F1729',
+    },
+    outfitBtn: {
+        flex: 1,
+        height: 52,
+        borderRadius: 14,
+        backgroundColor: '#0F1729',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    outfitBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#fff',
     },
 });
 

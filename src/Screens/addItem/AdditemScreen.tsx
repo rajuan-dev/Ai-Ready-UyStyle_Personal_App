@@ -53,6 +53,8 @@ import {
     ref,
     uploadBytesResumable,
     getDownloadURL,
+    refFromURL,
+    deleteObject,
 } from '@react-native-firebase/storage';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 
@@ -444,6 +446,51 @@ const AdditemScreen = () => {
         }
     };
 
+    // ── Delete item (Firestore + Storage) ──────────────────────────────────────
+    const handleDeleteItem = () => {
+        if (!initialItem || !user) return;
+
+        showConfirm(
+            'Delete Clothing Item',
+            'Are you sure you want to permanently delete this item from your closet? This action cannot be undone.',
+            async () => {
+                setUploading(true);
+                try {
+                    // 1. Delete photo from Firebase Storage
+                    if (initialItem.imageURL && initialItem.imageURL.includes('firebasestorage')) {
+                        try {
+                            const storage = getStorage(app);
+                            const fileRef = refFromURL(storage, initialItem.imageURL);
+                            await deleteObject(fileRef);
+                            console.log('[Storage] Photo deleted from Firebase Storage.');
+                        } catch (storageErr) {
+                            console.warn('[Storage deletion warning]', storageErr);
+                        }
+                    }
+
+                    // 2. Delete orphaned like document
+                    try {
+                        const likeRef = doc(db, 'likes', `${user.uid}_${initialItem.id}`);
+                        await deleteDoc(likeRef);
+                    } catch (likeErr) {
+                        console.warn('[Like deletion warning]', likeErr);
+                    }
+
+                    // 3. Delete Firestore closetItem document
+                    await deleteDoc(doc(db, 'closetItems', initialItem.id));
+
+                    showSuccess('Deleted!', 'Clothing item has been removed from your closet.', () => {
+                        handleBack();
+                    });
+                } catch (e: any) {
+                    showError('Error', `Failed to delete item: ${e.message}`);
+                } finally {
+                    setUploading(false);
+                }
+            }
+        );
+    };
+
     // ─────────────────────────────────────────────────────────────────────────
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -662,6 +709,18 @@ const AdditemScreen = () => {
                                     <Text style={styles.saveBtnText}>{initialItem ? 'Save Changes' : 'Add to Closet'}</Text>
                                 )}
                             </TouchableOpacity>
+
+                            {/* Delete Button (Only visible in Edit Mode) */}
+                            {initialItem && (
+                                <TouchableOpacity
+                                    style={[deleteStyles.deleteBtn, uploading && deleteStyles.deleteBtnDisabled]}
+                                    onPress={handleDeleteItem}
+                                    disabled={uploading}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={deleteStyles.deleteBtnText}>Delete Item</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
                 </View>
@@ -809,5 +868,26 @@ const categoryCardStyles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
         color: '#fff',
+    },
+});
+
+const deleteStyles = StyleSheet.create({
+    deleteBtn: {
+        backgroundColor: '#FFF1F2',
+        borderWidth: 1.5,
+        borderColor: '#FFE4E6',
+        borderRadius: 14,
+        paddingVertical: 16,
+        alignItems: 'center',
+        marginTop: 12,
+    },
+    deleteBtnDisabled: {
+        opacity: 0.6,
+    },
+    deleteBtnText: {
+        fontSize: 15,
+        fontFamily: 'InterSemiBold',
+        fontWeight: '600',
+        color: '#E11D48',
     },
 });
