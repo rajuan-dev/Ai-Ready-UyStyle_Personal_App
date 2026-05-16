@@ -13,34 +13,49 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApp } from '@react-native-firebase/app';
-import { getAuth, sendEmailVerification, signOut, deleteUser } from '@react-native-firebase/auth';
+import { getAuth, sendEmailVerification, signOut, deleteUser, sendPasswordResetEmail } from '@react-native-firebase/auth';
 import { clearPendingRegistration, setHasAccountFlag } from '../../auth/authStorage';
 import { useAuth } from '../../context';
 import { Mail, CheckCircle2, ArrowRight, RefreshCcw, LogOut, ShieldCheck, MailCheck, ChevronLeft } from 'lucide-react-native';
 
-const VerifyEmailScreen = ({ navigation }: any) => {
+const VerifyEmailScreen = ({ route, navigation }: any) => {
   const { user, refreshUser } = useAuth();
+  
+  const isPasswordReset = route?.params?.isPasswordReset || false;
+  const passedEmail = route?.params?.email || '';
+
   const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  const emailText = useMemo(() => user?.email || 'your email address', [user?.email]);
+  const emailText = useMemo(() => user?.email || passedEmail || 'your email address', [user?.email, passedEmail]);
 
   const handleResend = async () => {
-    if (!user) return;
-
     setResending(true);
     try {
-      await sendEmailVerification(user);
-      Alert.alert('Verification Sent', `A new verification link has been sent to ${emailText}. Please check your spam folder if you don't see it.`);
+      if (isPasswordReset) {
+        if (!passedEmail) return;
+        const auth = getAuth(getApp());
+        await sendPasswordResetEmail(auth, passedEmail);
+        Alert.alert('Link Sent', `A new password reset link has been sent to ${emailText}. Please check your spam folder.`);
+      } else {
+        if (!user) return;
+        await sendEmailVerification(user);
+        Alert.alert('Verification Sent', `A new verification link has been sent to ${emailText}. Please check your spam folder.`);
+      }
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Unable to resend verification email. Please try again later.');
+      Alert.alert('Error', error?.message || 'Unable to resend email. Please try again later.');
     } finally {
       setResending(false);
     }
   };
 
-  const handleCheckVerification = async () => {
+  const handlePrimaryAction = async () => {
+    if (isPasswordReset) {
+      navigation.navigate('signin');
+      return;
+    }
+
     setChecking(true);
     try {
       const refreshedUser = await refreshUser();
@@ -99,6 +114,14 @@ const VerifyEmailScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleBack = () => {
+    if (isPasswordReset) {
+      navigation.navigate('signin');
+    } else {
+      handleSignOut();
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -106,7 +129,7 @@ const VerifyEmailScreen = ({ navigation }: any) => {
       {/* Top Header with Back Button */}
       <View style={styles.topHeader}>
         <TouchableOpacity 
-          onPress={handleSignOut} 
+          onPress={handleBack} 
           style={styles.backButton}
           disabled={signingOut}
         >
@@ -134,9 +157,9 @@ const VerifyEmailScreen = ({ navigation }: any) => {
             </View>
             
             <View style={styles.textContainer}>
-              <Text style={styles.title}>Verify your email</Text>
+              <Text style={styles.title}>{isPasswordReset ? 'Check your email' : 'Verify your email'}</Text>
               <Text style={styles.subtitle}>
-                We've sent a secure verification link to{'\n'}
+                We've sent a secure {isPasswordReset ? 'password reset' : 'verification'} link to{'\n'}
                 <Text style={styles.emailHighlight}>{emailText}</Text>
               </Text>
             </View>
@@ -157,8 +180,8 @@ const VerifyEmailScreen = ({ navigation }: any) => {
                   <ShieldCheck size={18} color="#16A34A" />
                 </View>
                 <View style={styles.stepTextContent}>
-                  <Text style={styles.stepTitle}>Activate account</Text>
-                  <Text style={styles.stepDescription}>Your account will be verified instantly.</Text>
+                  <Text style={styles.stepTitle}>{isPasswordReset ? 'Reset password' : 'Activate account'}</Text>
+                  <Text style={styles.stepDescription}>{isPasswordReset ? 'Create a new password securely.' : 'Your account will be verified instantly.'}</Text>
                 </View>
               </View>
             </View>
@@ -175,14 +198,16 @@ const VerifyEmailScreen = ({ navigation }: any) => {
           <View style={styles.actionGroup}>
             <TouchableOpacity
               style={[styles.primaryButton, checking && styles.disabledButton]}
-              onPress={handleCheckVerification}
+              onPress={handlePrimaryAction}
               disabled={checking}
               activeOpacity={0.8}
             >
               {checking ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.primaryButtonText}>I've verified my email</Text>
+                <Text style={styles.primaryButtonText}>
+                  {isPasswordReset ? 'Return to Sign In' : 'I\'ve verified my email'}
+                </Text>
               )}
             </TouchableOpacity>
 
@@ -202,21 +227,23 @@ const VerifyEmailScreen = ({ navigation }: any) => {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.signOutButton}
-              onPress={handleSignOut}
-              disabled={signingOut}
-              activeOpacity={0.6}
-            >
-              {signingOut ? (
-                <ActivityIndicator color="#64748B" />
-              ) : (
-                <>
-                  <LogOut size={16} color="#64748B" style={{ marginRight: 6 }} />
-                  <Text style={styles.signOutButtonText}>Sign out and use another account</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {!isPasswordReset && (
+              <TouchableOpacity
+                style={styles.signOutButton}
+                onPress={handleSignOut}
+                disabled={signingOut}
+                activeOpacity={0.6}
+              >
+                {signingOut ? (
+                  <ActivityIndicator color="#64748B" />
+                ) : (
+                  <>
+                    <LogOut size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.signOutButtonText}>Sign out and use another account</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

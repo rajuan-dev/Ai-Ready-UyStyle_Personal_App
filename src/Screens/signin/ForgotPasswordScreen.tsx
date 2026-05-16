@@ -31,11 +31,10 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     try {
       const auth = getAuth(getApp());
       await sendPasswordResetEmail(auth, email.trim().toLowerCase());
-      Alert.alert(
-        'Success',
-        'A password reset link has been sent to your email. Check your inbox and spam folder, then come back to sign in.',
-        [{ text: 'OK' }]
-      );
+      navigation.navigate('verifyEmail', { 
+        email: email.trim().toLowerCase(),
+        isPasswordReset: true 
+      });
     } catch (error: any) {
       if (error.code === 'auth/invalid-email') {
         Alert.alert('Error', 'Please enter a valid email address');
@@ -108,7 +107,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.nextButtonText}>Send Code</Text>
+                <Text style={styles.nextButtonText}>Send link</Text>
               )}
             </TouchableOpacity>
           </View>
