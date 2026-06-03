@@ -19,8 +19,6 @@ dist/
 coverage/
 
 # Environment files
-.env
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -80,3 +78,4 @@ vendor/bundle/
 
 # React Native bundle artifacts
 *.jsbundle
+config.bat
