@@ -271,7 +271,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ustyle.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pbell.ustyle.dev;
 				PRODUCT_NAME = Personal_stylist_app;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -301,7 +301,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ustyle.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pbell.ustyle.dev;
 				PRODUCT_NAME = Personal_stylist_app;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;

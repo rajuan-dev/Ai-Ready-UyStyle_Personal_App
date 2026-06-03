@@ -14,7 +14,11 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
+# React Native Firebase Swift pods require frameworks on iOS.
+$RNFirebaseAsStaticFramework = true
+
 target 'Personal_stylist_app' do
+  use_frameworks! :linkage => :static if linkage.nil?
   config = use_native_modules!
 
   use_react_native!(
