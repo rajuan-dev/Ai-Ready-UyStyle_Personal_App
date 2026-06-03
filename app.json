@@ -3,9 +3,6 @@
     "name": "Ustyle",
     "slug": "ustyle",
     "version": "1.0.0",
-    "ios": {
-      "bundleIdentifier": "com.pbell.ustyle.dev"
-    },
     "extra": {
       "eas": {
         "projectId": "3873daa6-bd65-4bef-9486-7a56a9ce5442"

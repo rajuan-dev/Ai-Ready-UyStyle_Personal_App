@@ -4,6 +4,11 @@ require Pod::Executable.execute_command('node', ['-p',
     "react-native/scripts/react_native_pods.rb",
     {paths: [process.argv[1]]},
   )', __dir__]).strip
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "expo/scripts/autolinking.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
 
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
@@ -19,6 +24,7 @@ $RNFirebaseAsStaticFramework = true
 
 target 'Personal_stylist_app' do
   use_frameworks! :linkage => :static if linkage.nil?
+  use_expo_modules!
   config = use_native_modules!
 
   use_react_native!(
@@ -34,5 +40,22 @@ target 'Personal_stylist_app' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Xcode 16+ surfaces deprecated Apple API usage inside some third-party pods.
+    # Those warnings can break remote EAS builds depending on the toolchain.
+    installer.pods_project.targets.each do |target|
+      next unless ['RNFBStorage'].include?(target.name)
+
+      target.build_configurations.each do |build_configuration|
+        warning_flags = build_configuration.build_settings['WARNING_CFLAGS'] || ['$(inherited)']
+        warning_flags = [warning_flags] unless warning_flags.is_a?(Array)
+
+        unless warning_flags.include?('-Wno-deprecated-declarations')
+          warning_flags << '-Wno-deprecated-declarations'
+        end
+
+        build_configuration.build_settings['WARNING_CFLAGS'] = warning_flags
+      end
+    end
   end
 end
