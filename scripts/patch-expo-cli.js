@@ -428,7 +428,11 @@ function patchRNFirebaseFirestoreHeaders() {
 
     patched = patched.replace(
       /#import <React\/RCTBridgeModule\.h>/g,
-      "#import <RNFBApp/RNFBAppModule.h>"
+      "@import RNFBApp.RNFBAppModule;"
+    );
+    patched = patched.replace(
+      /#import <RNFBApp\/RNFBAppModule\.h>/g,
+      "@import RNFBApp.RNFBAppModule;"
     );
 
     if (patched !== original) {
