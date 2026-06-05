@@ -4,7 +4,8 @@
     "slug": "ustyle",
     "icon": "./assets/app-icon.png",
     "plugins": [
-      "./plugins/withAndroidPortability"
+      "./plugins/withAndroidPortability",
+      "./plugins/withIosFirebaseModularHeaders"
     ],
     "version": "1.0.0",
     "android": {
