@@ -30,6 +30,7 @@ coverage/
 *.iml
 
 # Android local/build artifacts
+android/
 .gradle/
 .kotlin/
 .cxx/
@@ -44,6 +45,7 @@ android/build/
 !android/app/debug.keystore
 
 # iOS / Xcode local/build artifacts
+ios/
 build/
 DerivedData/
 *.pbxuser
