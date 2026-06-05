@@ -21,11 +21,6 @@
         "backgroundColor": "#FFFFFF"
       }
     },
-    "androidNavigationBar": {
-      "barStyle": "light-content",
-      "backgroundColor": "#00000000",
-      "visible": "sticky-immersive"
-    },
     "ios": {
       "icon": "./assets/app-icon.png",
       "bundleIdentifier": "com.ustyle.app",
@@ -33,7 +28,8 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "This app requires camera access to take photos of your clothing items and profile pictures.",
-        "NSPhotoLibraryUsageDescription": "This app requires photo library access to choose images of your clothing items."
+        "NSPhotoLibraryUsageDescription": "This app requires photo library access to choose images of your clothing items.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "extra": {
