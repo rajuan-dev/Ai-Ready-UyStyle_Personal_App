@@ -23,7 +23,7 @@
     },
     "ios": {
       "icon": "./assets/app-icon.png",
-      "bundleIdentifier": "com.ustyle.app",
+      "bundleIdentifier": "com.pbell.ustyle.dev",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
