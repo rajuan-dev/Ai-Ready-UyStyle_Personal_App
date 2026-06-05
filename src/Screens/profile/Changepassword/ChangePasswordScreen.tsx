@@ -14,13 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { getApp } from '@react-native-firebase/app';
+import { getApp } from '../../../firebase/app';
 import {
     getAuth,
     EmailAuthProvider,
     reauthenticateWithCredential,
     updatePassword,
-} from '@react-native-firebase/auth';
+} from '../../../firebase/auth';
 
 interface FormState {
     currentPassword: string;

@@ -256,15 +256,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Share2, CheckCircle2 } from 'lucide-react-native';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     collection,
     query,
     where,
     getDocs,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 
 const { width } = Dimensions.get('window');
 const H_PAD = 20;

@@ -16,8 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Shirt, X, Pencil } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     collection,
@@ -27,7 +27,7 @@ import {
     getDocs,
     QueryDocumentSnapshot,
     DocumentData,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_SIZE = (SCREEN_W - 48) / 2;

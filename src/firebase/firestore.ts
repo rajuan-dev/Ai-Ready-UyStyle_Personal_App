@@ -1,0 +1,23 @@
+export { getFirestore } from './client';
+export {
+  addDoc,
+  collection,
+  type DocumentData,
+  deleteDoc,
+  doc,
+  getCountFromServer,
+  getDoc,
+  getDocs,
+  increment,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  type QueryDocumentSnapshot,
+  serverTimestamp,
+  setDoc,
+  startAfter,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';

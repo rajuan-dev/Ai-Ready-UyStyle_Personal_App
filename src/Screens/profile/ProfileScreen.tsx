@@ -14,8 +14,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChevronRight, Heart, PenLine, Shirt, User } from 'lucide-react-native';
 import { styles } from './style';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth, signOut } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth, signOut } from '../../firebase/auth';
 import {
     getFirestore,
     doc,
@@ -27,7 +27,7 @@ import {
     getDocs,
     limit,
     orderBy,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 
 // ── Firebase refs (singleton — created once, not every render) ──

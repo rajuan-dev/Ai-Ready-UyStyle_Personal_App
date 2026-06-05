@@ -32,8 +32,8 @@ import {
     Tag,
     XIcon,
 } from 'lucide-react-native';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     collection,
@@ -47,7 +47,7 @@ import {
     writeBatch,
     getDocs,
     getCountFromServer,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
 

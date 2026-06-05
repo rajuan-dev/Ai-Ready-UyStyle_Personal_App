@@ -33,8 +33,8 @@ import {
     launchImageLibrary,
     ImagePickerResponse,
 } from 'react-native-image-picker';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import { useAppAlert } from '../../context/AlertContext';
 import {
     getFirestore,
@@ -47,7 +47,7 @@ import {
     deleteDoc,
     doc,
     updateDoc,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 import {
     getStorage,
     ref,
@@ -55,7 +55,7 @@ import {
     getDownloadURL,
     refFromURL,
     deleteObject,
-} from '@react-native-firebase/storage';
+} from '../../firebase/storage';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 
 // ─── Default built-in categories ─────────────────────────────────────────────

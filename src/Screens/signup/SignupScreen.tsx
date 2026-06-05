@@ -12,8 +12,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from '../../firebase/auth';
 import { getPendingRegistration, setPendingRegistration } from '../../auth/authStorage';
 import { styles } from './style';
 

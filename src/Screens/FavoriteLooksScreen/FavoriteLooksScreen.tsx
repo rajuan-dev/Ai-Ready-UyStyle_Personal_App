@@ -11,9 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart } from 'lucide-react-native';
-import { getApp } from '@react-native-firebase/app';
-import { getFirestore, collection, query, where, onSnapshot, doc, getDoc } from '@react-native-firebase/firestore';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getFirestore, collection, query, where, onSnapshot, doc, getDoc } from '../../firebase/firestore';
+import { getAuth } from '../../firebase/auth';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 40) / 2;

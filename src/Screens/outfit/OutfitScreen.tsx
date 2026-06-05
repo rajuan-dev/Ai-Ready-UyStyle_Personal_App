@@ -15,8 +15,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Flame, X } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppAlert } from '../../context/AlertContext';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     collection,
@@ -35,7 +35,7 @@ import {
     serverTimestamp,
     QueryDocumentSnapshot,
     DocumentData,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 import { styles } from './style';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 

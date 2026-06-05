@@ -32,79 +32,6 @@ const gradleTargetFile = path.join(
   "gradle.js"
 );
 
-const rnfbFirestoreHeaderFiles = [
-  path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "@react-native-firebase",
-    "firestore",
-    "ios",
-    "RNFBFirestore",
-    "RNFBFirestoreCommon.h"
-  ),
-  path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "@react-native-firebase",
-    "firestore",
-    "ios",
-    "RNFBFirestore",
-    "RNFBFirestoreCollectionModule.h"
-  ),
-  path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "@react-native-firebase",
-    "firestore",
-    "ios",
-    "RNFBFirestore",
-    "RNFBFirestoreDocumentModule.h"
-  ),
-  path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "@react-native-firebase",
-    "firestore",
-    "ios",
-    "RNFBFirestore",
-    "RNFBFirestoreModule.h"
-  ),
-  path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "@react-native-firebase",
-    "firestore",
-    "ios",
-    "RNFBFirestore",
-    "RNFBFirestoreQuery.h"
-  ),
-  path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "@react-native-firebase",
-    "firestore",
-    "ios",
-    "RNFBFirestore",
-    "RNFBFirestoreSerialize.h"
-  ),
-  path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "@react-native-firebase",
-    "firestore",
-    "ios",
-    "RNFBFirestore",
-    "RNFBFirestoreTransactionModule.h"
-  ),
-];
-
 function patchResolveGradleProps() {
   const marker = "function preferPrimaryArchitecture";
 
@@ -415,45 +342,9 @@ function upperFirst(name) {
   return true;
 }
 
-function patchRNFirebaseFirestoreHeaders() {
-  let changed = false;
-
-  for (const targetFile of rnfbFirestoreHeaderFiles) {
-    if (!fs.existsSync(targetFile)) {
-      continue;
-    }
-
-    const original = fs.readFileSync(targetFile, "utf8");
-    let patched = original;
-
-    patched = patched.replace(
-      /#import <React\/RCTBridgeModule\.h>/g,
-      "@import RNFBApp.RNFBAppModule;"
-    );
-    patched = patched.replace(
-      /#import <RNFBApp\/RNFBAppModule\.h>/g,
-      "@import RNFBApp.RNFBAppModule;"
-    );
-
-    if (patched !== original) {
-      fs.writeFileSync(targetFile, patched);
-      changed = true;
-    }
-  }
-
-  if (changed) {
-    console.log("[patch-expo-cli] RNFirebase Firestore iOS headers patched for RNFB module imports");
-  } else {
-    console.log("[patch-expo-cli] RNFirebase Firestore iOS header patch already applied");
-  }
-
-  return changed;
-}
-
 const patchSteps = [
   patchResolveGradleProps,
   patchGradle,
-  patchRNFirebaseFirestoreHeaders,
 ];
 
 let changed = false;

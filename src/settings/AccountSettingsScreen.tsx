@@ -21,10 +21,10 @@ import {
     launchImageLibrary,
     ImagePickerResponse,
 } from 'react-native-image-picker';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
-import { getFirestore, doc, onSnapshot, updateDoc } from '@react-native-firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from '@react-native-firebase/storage';
+import { getApp } from '../firebase/app';
+import { getAuth } from '../firebase/auth';
+import { getFirestore, doc, onSnapshot, updateDoc } from '../firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from '../firebase/storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -16,8 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../signup/style';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth, sendEmailVerification, signInWithEmailAndPassword } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth, sendEmailVerification, signInWithEmailAndPassword } from '../../firebase/auth';
 import { setHasAccountFlag } from '../../auth/authStorage';
 
 const EyeIcon = ({ visible }: { visible: boolean }) => (

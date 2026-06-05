@@ -18,8 +18,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Bell, ChevronRight, Search, Sparkles, Zap, X, User, Flame } from 'lucide-react-native';
 import { styles } from './style';
 import { useNavigation } from '@react-navigation/native';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     doc,
@@ -30,7 +30,7 @@ import {
     getDocs,
     orderBy,
     limit,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');

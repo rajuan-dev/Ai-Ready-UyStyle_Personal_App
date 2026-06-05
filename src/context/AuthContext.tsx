@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth, onAuthStateChanged, reload } from '@react-native-firebase/auth';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
+import { getApp } from '../firebase/app';
+import { getAuth, onAuthStateChanged, reload } from '../firebase/auth';
+import type { FirebaseAuthTypes } from '../firebase/auth';
+import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from '../firebase/firestore';
 import {
   clearPendingRegistration,
   getHasAccountFlag,

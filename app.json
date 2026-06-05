@@ -4,8 +4,7 @@
     "slug": "ustyle",
     "icon": "./assets/app-icon.png",
     "plugins": [
-      "./plugins/withAndroidPortability",
-      "./plugins/withIosFirebaseModularHeaders"
+      "./plugins/withAndroidPortability"
     ],
     "version": "1.0.0",
     "android": {
@@ -35,8 +34,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "3873daa6-bd65-4bef-9486-7a56a9ce5442"
+        "projectId": "cab39d61-f33d-43e6-934f-42144f02e499"
       }
-    }
+    },
+    "owner": "rajuan.official.mail"
   }
 }

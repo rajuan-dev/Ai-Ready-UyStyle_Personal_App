@@ -4,7 +4,7 @@
  *
  * Dependencies (already in project):
  *   react-native, react-native-safe-area-context,
- *   @react-native-firebase/app, @react-native-firebase/auth, @react-native-firebase/firestore
+ *   ../../firebase/app, ../../firebase/auth, ../../firebase/firestore
  *   lucide-react-native
  *
  * Weather: Local state only — hot | warm | cool | rainy (NO external API)
@@ -46,8 +46,8 @@ import {
     Thermometer,
     ChevronRight,
 } from 'lucide-react-native';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     collection,
@@ -56,7 +56,7 @@ import {
     getDocs,
     getDoc,
     doc,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

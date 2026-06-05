@@ -259,20 +259,20 @@ import {
     launchImageLibrary,
     ImagePickerResponse,
 } from 'react-native-image-picker';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     doc,
     getDoc,
     updateDoc,
-} from '@react-native-firebase/firestore';
+} from '../../firebase/firestore';
 import {
     getStorage,
     ref,
     uploadBytesResumable,
     getDownloadURL,
-} from '@react-native-firebase/storage';
+} from '../../firebase/storage';
 import { invalidateProfileCache } from './ProfileScreen';
 import { useAppAlert } from '../../context/AlertContext';
 

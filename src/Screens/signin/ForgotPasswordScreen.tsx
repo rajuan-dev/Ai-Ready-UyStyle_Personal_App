@@ -14,8 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { styles } from '../signup/style';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth, sendPasswordResetEmail } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth, sendPasswordResetEmail } from '../../firebase/auth';
 
 const ForgotPasswordScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');

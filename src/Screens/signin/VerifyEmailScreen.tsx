@@ -12,8 +12,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getApp } from '@react-native-firebase/app';
-import { getAuth, sendEmailVerification, signOut, deleteUser, sendPasswordResetEmail } from '@react-native-firebase/auth';
+import { getApp } from '../../firebase/app';
+import { getAuth, sendEmailVerification, signOut, deleteUser, sendPasswordResetEmail } from '../../firebase/auth';
 import { clearPendingRegistration, setHasAccountFlag } from '../../auth/authStorage';
 import { useAuth } from '../../context';
 import { Mail, CheckCircle2, ArrowRight, RefreshCcw, LogOut, ShieldCheck, MailCheck, ChevronLeft } from 'lucide-react-native';

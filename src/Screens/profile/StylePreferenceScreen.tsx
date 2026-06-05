@@ -13,15 +13,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Check } from 'lucide-react-native';
 
 // ─── Firebase Modular v22 imports ─────────────────────────────────────────────
-import { getApp } from '@react-native-firebase/app';
+import { getApp } from '../../firebase/app';
 import {
     getFirestore,
     doc,
     getDoc,
     setDoc,
     serverTimestamp,
-} from '@react-native-firebase/firestore';
-import { getAuth } from '@react-native-firebase/auth';
+} from '../../firebase/firestore';
+import { getAuth } from '../../firebase/auth';
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface StyleCategory {
