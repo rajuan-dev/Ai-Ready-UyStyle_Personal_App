@@ -346,18 +346,19 @@ const ProfileEditScreen = ({ navigation }: any) => {
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
-                    options:           ['Cancel',' Open Gallery'],
+                    options:           ['Cancel', 'Open Gallery', 'Camera'],
                     cancelButtonIndex:  0,
                 },
                 (index) => {
-                    if (index === 1) openCamera();
-                    if (index === 2) openGallery();
+                    if (index === 1) openGallery();
+                    if (index === 2) openCamera();
                 }
             );
         } else {
             Alert.alert('Profile Photo', 'Choose an option', [
-                { text: 'Cancel',          style: 'cancel'  },
-                { text: ' Open Gallery', onPress: openGallery },
+                { text: 'Cancel',       style: 'cancel'  },
+                { text: 'Open Gallery', onPress: openGallery },
+                { text: 'Camera',       onPress: openCamera  },
             ]);
         }
     };

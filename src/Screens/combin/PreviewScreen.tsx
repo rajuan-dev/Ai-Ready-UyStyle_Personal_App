@@ -253,6 +253,8 @@ import {
     ScrollView,
     Dimensions,
     ActivityIndicator,
+    Share,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Share2, CheckCircle2 } from 'lucide-react-native';
@@ -299,6 +301,29 @@ const PreviewScreen = ({ route, navigation }: any) => {
     const auth = getAuth(app);
     const db   = getFirestore(app);
     const user = auth.currentUser;
+
+    // ── Share handler ───────────────────────────────────────────────────
+    const handleShare = async () => {
+        try {
+            const itemSummary = items
+                .map((item: ClosetItem) => {
+                    const slot = resolveSlotLabel(item);
+                    return `${slot}: ${item.title}${item.color ? ` (${item.color})` : ''}`;
+                })
+                .join('\n');
+
+            const message = `👗 Check out my outfit on UStyle!\n\n${itemSummary}\n\nCreated with UStyle`;
+
+            await Share.share({
+                message,
+                title: isSaved ? 'My Saved Look' : 'My Outfit',
+            });
+        } catch (error: any) {
+            if (error?.message !== 'User did not share') {
+                Alert.alert('Share Failed', 'Could not share the outfit. Please try again.');
+            }
+        }
+    };
 
  
     const [loadingSlots, setLoadingSlots] = useState(true);
@@ -367,7 +392,7 @@ const PreviewScreen = ({ route, navigation }: any) => {
                     <ArrowLeft size={20} color="#0F1729" />
                 </TouchableOpacity>
                 <Text style={st.headerTitle}>{isSaved ? 'Saved Look' : 'Preview Look'}</Text>
-                <TouchableOpacity style={st.iconBtn} activeOpacity={0.8}>
+                <TouchableOpacity style={st.iconBtn} activeOpacity={0.8} onPress={handleShare}>
                     <Share2 size={18} color="#0F1729" />
                 </TouchableOpacity>
             </View>

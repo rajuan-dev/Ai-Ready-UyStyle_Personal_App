@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Check } from 'lucide-react-native';
+import { useAppAlert } from '../../context/AlertContext';
 
 // ─── Firebase Modular v22 imports ─────────────────────────────────────────────
 import { getApp } from '../../firebase/app';
@@ -84,11 +85,13 @@ const StylePreferenceScreen = ({ navigation }: any) => {
     const [saving,  setSaving]  = useState(false);
     const [saved,   setSaved]   = useState(false);
 
+    const { showError } = useAppAlert();
+
     // ─── Firestore doc reference (Modular v22) ────────────────────────────────
     const getUserDocRef = () => {
         const app  = getApp();
         const user = getAuth(app).currentUser;
-        if (!user) throw new Error('User not authenticated');
+        if (!user) return null;
         const db = getFirestore(app);
         // Path: stylePrefs/{uid}  → separate top-level collection
         return doc(db, 'stylePrefs', user.uid);
@@ -111,7 +114,11 @@ const StylePreferenceScreen = ({ navigation }: any) => {
     useEffect(() => {
         const fetchPreferences = async () => {
             try {
-                const docRef  = getUserDocRef();
+                const docRef = getUserDocRef();
+                if (!docRef) {
+                    // User not authenticated yet — skip without crashing
+                    return;
+                }
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
@@ -122,6 +129,7 @@ const StylePreferenceScreen = ({ navigation }: any) => {
                 }
             } catch (error: any) {
                 console.error('Error fetching preferences:', error);
+                showError('Load Failed', 'Could not load your preferences. Please try again.');
             } finally {
                 setLoading(false);
             }
@@ -150,6 +158,10 @@ const StylePreferenceScreen = ({ navigation }: any) => {
         setSaving(true);
         try {
             const docRef = getUserDocRef();
+            if (!docRef) {
+                showError('Error', 'You must be logged in to save preferences.');
+                return;
+            }
 
             await setDoc(
                 docRef,

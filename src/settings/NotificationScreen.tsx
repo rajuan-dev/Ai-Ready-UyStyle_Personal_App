@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     StatusBar,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Sparkles, Package, CheckCircle2, Info, Bell } from 'lucide-react-native';
@@ -13,7 +14,16 @@ import { useNavigation } from '@react-navigation/native';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const notifications = [
+type Notification = {
+    id: string;
+    title: string;
+    desc: string;
+    time: string;
+    type: string;
+    isRead: boolean;
+};
+
+const initialNotifications: Notification[] = [
     {
         id: '1',
         title: 'New Style Recommendation',
@@ -52,6 +62,8 @@ const notifications = [
 
 const NotificationScreen = () => {
     const navigation = useNavigation();
+    const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+    const [clearing, setClearing] = useState(false);
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -60,6 +72,28 @@ const NotificationScreen = () => {
             case 'reminder': return <CheckCircle2 size={20} color="#F59E0B" />;
             default: return <Info size={20} color="#64748B" />;
         }
+    };
+
+    const handleClearAll = async () => {
+        if (clearing || notifications.length === 0) return;
+        setClearing(true);
+        try {
+            // Small delay to show loading state and prevent accidental double-taps
+            await new Promise(resolve => setTimeout(resolve, 300));
+            setNotifications([]);
+        } catch (error) {
+            console.warn('Failed to clear notifications:', error);
+        } finally {
+            setClearing(false);
+        }
+    };
+
+    const handleMarkAsRead = (id: string) => {
+        setNotifications(prev =>
+            prev.map(notif =>
+                notif.id === id ? { ...notif, isRead: true } : notif
+            )
+        );
     };
 
     return (
@@ -75,8 +109,22 @@ const NotificationScreen = () => {
                     <ArrowLeft size={24} color="#1E293B" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Notifications</Text>
-                <TouchableOpacity style={styles.clearBtn}>
-                    <Text style={styles.clearText}>Clear all</Text>
+                <TouchableOpacity
+                    style={[styles.clearBtn, (clearing || notifications.length === 0) && styles.clearBtnDisabled]}
+                    onPress={handleClearAll}
+                    disabled={clearing || notifications.length === 0}
+                    activeOpacity={0.7}
+                >
+                    {clearing ? (
+                        <ActivityIndicator size="small" color="#2869BD" />
+                    ) : (
+                        <Text style={[
+                            styles.clearText,
+                            notifications.length === 0 && styles.clearTextDisabled,
+                        ]}>
+                            Clear all
+                        </Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -90,6 +138,7 @@ const NotificationScreen = () => {
                             key={item.id}
                             style={[styles.notifCard, !item.isRead && styles.unreadCard]}
                             activeOpacity={0.7}
+                            onPress={() => handleMarkAsRead(item.id)}
                         >
                             <View style={[styles.iconContainer, { backgroundColor: item.isRead ? '#F1F5F9' : '#fff' }]}>
                                 {getIcon(item.type)}
@@ -144,11 +193,19 @@ const styles = StyleSheet.create({
     },
     clearBtn: {
         paddingHorizontal: 8,
+        minWidth: 60,
+        alignItems: 'center',
+    },
+    clearBtnDisabled: {
+        opacity: 0.5,
     },
     clearText: {
         fontSize: 14,
         color: '#2869BD',
         fontFamily: 'InterSemiBold',
+    },
+    clearTextDisabled: {
+        color: '#94A3B8',
     },
     scrollContent: {
         paddingVertical: 10,

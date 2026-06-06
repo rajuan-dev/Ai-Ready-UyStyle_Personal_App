@@ -20,10 +20,13 @@ import {
     StyleSheet,
     Dimensions,
     Animated,
+    Modal,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     Grid3x3,
+    List,
     SlidersHorizontal,
     Search,
     ShoppingBag,
@@ -111,33 +114,35 @@ interface ItemCardProps {
     liked:    boolean;
     onToggle: (id: string) => void;
     onPress:  (item: ClosetItem) => void;
+    viewMode: 'grid' | 'list';
 }
 
-const ItemCard: React.FC<ItemCardProps> = React.memo(({ item, liked, onToggle, onPress }) => {
+const ItemCard: React.FC<ItemCardProps> = React.memo(({ item, liked, onToggle, onPress, viewMode }) => {
     const count = item.likeCount ?? 0;
+    const isList = viewMode === 'list';
     return (
         <TouchableOpacity 
-            style={cardStyles.card} 
+            style={isList ? listCardStyles.card : cardStyles.card} 
             activeOpacity={0.88}
             onPress={() => onPress(item)}
         >
-            <View style={cardStyles.imageWrapper}>
+            <View style={isList ? listCardStyles.imageWrapper : cardStyles.imageWrapper}>
                 <Image
                     source={{ uri: item.imageURL }}
-                    style={cardStyles.image}
+                    style={isList ? listCardStyles.image : cardStyles.image}
                     resizeMode="cover"
                 />
                 <HeartButton itemId={item.id} liked={liked} onToggle={onToggle} />
             </View>
-            <View style={cardStyles.info}>
-                <Text style={cardStyles.title} numberOfLines={1}>{item.title}</Text>
-                <View style={cardStyles.metaRow}>
-                    <Text style={cardStyles.meta} numberOfLines={1}>
+            <View style={isList ? listCardStyles.info : cardStyles.info}>
+                <Text style={isList ? listCardStyles.title : cardStyles.title} numberOfLines={1}>{item.title}</Text>
+                <View style={isList ? listCardStyles.metaRow : cardStyles.metaRow}>
+                    <Text style={isList ? listCardStyles.meta : cardStyles.meta} numberOfLines={1}>
                         {item.category ?? '—'} · {item.color ?? '—'}
                     </Text>
-                    <View style={cardStyles.badge}>
+                    <View style={isList ? listCardStyles.badge : cardStyles.badge}>
                         <Heart size={10} color="#ef4444" fill="#ef4444" strokeWidth={0} />
-                        <Text style={cardStyles.badgeText}>
+                        <Text style={isList ? listCardStyles.badgeText : cardStyles.badgeText}>
                             {count >= 1000 ? `${(count / 1000).toFixed(1)}k` : count}
                         </Text>
                     </View>
@@ -160,6 +165,9 @@ const ClosetScreen = () => {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [searchText,       setSearchText]       = useState('');
     const [selectedItem,     setSelectedItem]     = useState<ClosetItem | null>(null);
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
+    const [filterColors,       setFilterColors]       = useState<string[]>([]);
+    const [viewMode,           setViewMode]           = useState<'grid' | 'list'>('grid');
 
     const navigation = useNavigation<any>();
 
@@ -241,9 +249,36 @@ const ClosetScreen = () => {
                 (item.title    ?? '').toLowerCase().includes(s) ||
                 (item.color    ?? '').toLowerCase().includes(s) ||
                 (item.category ?? '').toLowerCase().includes(s);
-            return matchCat && matchSearch;
+            const matchColor  =
+                filterColors.length === 0 ||
+                filterColors.some(fc => (item.color ?? '').toLowerCase() === fc.toLowerCase());
+            return matchCat && matchSearch && matchColor;
         }),
-    [items, selectedCategory, searchText]);
+    [items, selectedCategory, searchText, filterColors]);
+
+    // ── Available colors from closet data for filter modal ─────────────────────
+    const availableColors = useMemo(() => {
+        const unique = Array.from(
+            new Set(items.map(i => i.color).filter(Boolean)),
+        ).sort();
+        return unique;
+    }, [items]);
+
+    const toggleFilterColor = (color: string) => {
+        setFilterColors(prev =>
+            prev.includes(color)
+                ? prev.filter(c => c !== color)
+                : [...prev, color],
+        );
+    };
+
+    const clearFilters = () => {
+        setFilterColors([]);
+        setSelectedCategory('All');
+        setFilterModalVisible(false);
+    };
+
+    const activeFilterCount = filterColors.length + (selectedCategory !== 'All' ? 1 : 0);
 
     // ── 5. Pagination + refresh ───────────────────────────────────────────────
     const loadMore       = useCallback(() => {
@@ -302,9 +337,10 @@ const ClosetScreen = () => {
                 liked={likedIds.has(item.id)} 
                 onToggle={handleToggleLike} 
                 onPress={setSelectedItem}
+                viewMode={viewMode}
             />
         ),
-        [likedIds, handleToggleLike],
+        [likedIds, handleToggleLike, viewMode],
     );
 
     const keyExtractor = useCallback((item: ClosetItem) => item.id, []);
@@ -346,7 +382,7 @@ const ClosetScreen = () => {
             <Text style={styles.emptySubtitle}>
                 {searchText || selectedCategory !== 'All'
                     ? 'Try a different search or category'
-                    : 'Tap the + tab to add your first item'}
+                    : 'Tap + to add your first item'}
             </Text>
         </View>
     ), [searchText, selectedCategory]);
@@ -374,11 +410,27 @@ const ClosetScreen = () => {
                     <Text style={styles.subtitle}>{filteredItems.length} items</Text>
                 </View>
                 <View style={styles.headerIcons}>
-                    <TouchableOpacity style={styles.iconBtn}>
-                        <Grid3x3 size={20} color="#1E293B" />
+                    <TouchableOpacity
+                        style={styles.iconBtn}
+                        onPress={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
+                        activeOpacity={0.7}
+                    >
+                        {viewMode === 'grid' ? (
+                            <Grid3x3 size={20} color="#1E293B" />
+                        ) : (
+                            <List size={20} color="#1E293B" />
+                        )}
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.iconBtn}>
-                        <SlidersHorizontal size={20} color="#1E293B" />
+                    <TouchableOpacity
+                        style={[styles.iconBtn, activeFilterCount > 0 && filterBtnStyles.activeBtn]}
+                        onPress={() => setFilterModalVisible(true)}
+                    >
+                        <SlidersHorizontal size={20} color={activeFilterCount > 0 ? '#fff' : '#1E293B'} />
+                        {activeFilterCount > 0 && (
+                            <View style={filterBtnStyles.badge}>
+                                <Text style={filterBtnStyles.badgeText}>{activeFilterCount}</Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -411,11 +463,12 @@ const ClosetScreen = () => {
 
             {/* Items grid */}
             <FlatList<ClosetItem>
+                key={viewMode}
                 data={filteredItems}
                 keyExtractor={keyExtractor}
                 renderItem={renderItem}
-                numColumns={2}
-                columnWrapperStyle={gridStyles.columnWrapper}
+                numColumns={viewMode === 'grid' ? 2 : 1}
+                columnWrapperStyle={viewMode === 'grid' ? gridStyles.columnWrapper : undefined}
                 contentContainerStyle={[
                     gridStyles.content,
                     { paddingBottom: getTabScreenBottomPadding(insets.bottom) },
@@ -434,6 +487,106 @@ const ClosetScreen = () => {
                 windowSize={10}
                 initialNumToRender={10}
             />
+
+            {/* Filter Modal */}
+            <Modal
+                visible={filterModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setFilterModalVisible(false)}
+            >
+                <Pressable
+                    style={filterModalStyles.overlay}
+                    onPress={() => setFilterModalVisible(false)}
+                />
+                <View style={filterModalStyles.sheet}>
+                    <View style={filterModalStyles.handle} />
+                    <View style={filterModalStyles.headerRow}>
+                        <Text style={filterModalStyles.title}>Filter Items</Text>
+                        <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                            <X size={20} color="#64748B" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        {/* Category Filter */}
+                        <View style={filterModalStyles.section}>
+                            <Text style={filterModalStyles.sectionTitle}>Category</Text>
+                            <View style={filterModalStyles.chipRow}>
+                                {categoryTabs.map(cat => {
+                                    const isSelected = selectedCategory === cat;
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat}
+                                            style={[
+                                                filterModalStyles.chip,
+                                                isSelected && filterModalStyles.chipSelected,
+                                            ]}
+                                            onPress={() => setSelectedCategory(cat)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[
+                                                filterModalStyles.chipText,
+                                                isSelected && filterModalStyles.chipTextSelected,
+                                            ]}>
+                                                {cat}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </View>
+
+                        {/* Color Filter */}
+                        {availableColors.length > 0 && (
+                            <View style={filterModalStyles.section}>
+                                <Text style={filterModalStyles.sectionTitle}>Color</Text>
+                                <View style={filterModalStyles.chipRow}>
+                                    {availableColors.map(color => {
+                                        const isSelected = filterColors.includes(color);
+                                        return (
+                                            <TouchableOpacity
+                                                key={color}
+                                                style={[
+                                                    filterModalStyles.chip,
+                                                    isSelected && filterModalStyles.chipSelected,
+                                                ]}
+                                                onPress={() => toggleFilterColor(color)}
+                                                activeOpacity={0.8}
+                                            >
+                                                <Text style={[
+                                                    filterModalStyles.chipText,
+                                                    isSelected && filterModalStyles.chipTextSelected,
+                                                ]}>
+                                                    {color}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        )}
+                    </ScrollView>
+
+                    {/* Bottom Actions */}
+                    <View style={filterModalStyles.actions}>
+                        <TouchableOpacity
+                            style={filterModalStyles.clearBtn}
+                            onPress={clearFilters}
+                        >
+                            <Text style={filterModalStyles.clearText}>Clear All</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={filterModalStyles.applyBtn}
+                            onPress={() => setFilterModalVisible(false)}
+                        >
+                            <Text style={filterModalStyles.applyText}>
+                                Show Results ({filteredItems.length})
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {selectedItem && (
                 <View style={modalStyles.overlay}>
@@ -651,6 +804,69 @@ const cardStyles = StyleSheet.create({
     badgeText: { fontSize: 10, fontWeight: '700', color: '#ef4444' },
 });
 
+const listCardStyles = StyleSheet.create({
+    card: {
+        width:           '100%',
+        backgroundColor: '#fff',
+        borderRadius:    16,
+        overflow:        'hidden',
+        shadowColor:     '#1e293b',
+        shadowOffset:    { width: 0, height: 2 },
+        shadowOpacity:   0.07,
+        shadowRadius:    8,
+        elevation:       3,
+        marginBottom:    CARD_GAP,
+        flexDirection:   'row',
+        padding:         10,
+        alignItems:      'center',
+    },
+    imageWrapper: {
+        width:           90,
+        height:          90,
+        borderRadius:    12,
+        backgroundColor: '#f1f5f9',
+        overflow:        'hidden',
+        position:        'relative',
+    },
+    image:   { width: '100%', height: '100%' },
+    info: {
+        flex:              1,
+        paddingHorizontal: 16,
+        justifyContent:    'center',
+    },
+    title: {
+        fontSize:     15,
+        fontWeight:   '600',
+        color:        '#0f172a',
+        marginBottom: 6,
+        fontFamily:   'InterSemiBold',
+    },
+    metaRow: {
+        flexDirection:  'row',
+        alignItems:     'center',
+        justifyContent: 'space-between',
+        marginTop:      4,
+    },
+    meta: {
+        fontSize:    13,
+        color:       '#64748B',
+        fontWeight:  '400',
+        fontFamily:  'InterRegular',
+        flexShrink:  1,
+        marginRight: 6,
+    },
+    badge: {
+        flexDirection:     'row',
+        alignItems:        'center',
+        gap:               3,
+        backgroundColor:   '#fef2f2',
+        borderRadius:      99,
+        paddingHorizontal: 8,
+        paddingVertical:   4,
+    },
+    badgeText: { fontSize: 11, fontWeight: '700', color: '#ef4444', fontFamily: 'InterMedium' },
+});
+
 const likeStyles = StyleSheet.create({
     wrapper: {
         position:        'absolute',
@@ -677,4 +893,134 @@ const footerStyles = StyleSheet.create({
         gap: 8,
     },
     text: { fontSize: 13, color: '#94a3b8', fontWeight: '500' },
+});
+
+const filterBtnStyles = StyleSheet.create({
+    activeBtn: {
+        backgroundColor: '#2869BD',
+    },
+    badge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        backgroundColor: '#EF4444',
+        borderRadius: 10,
+        width: 18,
+        height: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    badgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#fff',
+    },
+});
+
+const filterModalStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    sheet: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingHorizontal: 20,
+        paddingBottom: 34,
+        maxHeight: '60%',
+    },
+    handle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#E2E8F0',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginTop: 10,
+        marginBottom: 16,
+    },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: '700',
+        fontFamily: 'InterBold',
+        color: '#0F1729',
+    },
+    section: {
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        fontFamily: 'InterSemiBold',
+        color: '#1E293B',
+        marginBottom: 12,
+    },
+    chipRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    chip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F3F4F6',
+        borderWidth: 1.5,
+        borderColor: '#F3F4F6',
+    },
+    chipSelected: {
+        backgroundColor: '#EBF1FB',
+        borderColor: '#2869BD',
+    },
+    chipText: {
+        fontSize: 13,
+        fontWeight: '500',
+        fontFamily: 'InterMedium',
+        color: '#565E74',
+    },
+    chipTextSelected: {
+        fontWeight: '600',
+        fontFamily: 'InterSemiBold',
+        color: '#2869BD',
+    },
+    actions: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 12,
+    },
+    clearBtn: {
+        flex: 1,
+        height: 48,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    clearText: {
+        fontSize: 14,
+        fontWeight: '600',
+        fontFamily: 'InterSemiBold',
+        color: '#64748B',
+    },
+    applyBtn: {
+        flex: 1.6,
+        height: 48,
+        borderRadius: 14,
+        backgroundColor: '#0F1729',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    applyText: {
+        fontSize: 14,
+        fontWeight: '600',
+        fontFamily: 'InterSemiBold',
+        color: '#fff',
+    },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -13,6 +13,7 @@ import {
     Keyboard,
     StyleSheet,
     Dimensions, RefreshControl,
+    Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronRight, Search, Sparkles, Zap, X, User, Flame } from 'lucide-react-native';
@@ -40,6 +41,7 @@ type RecentClosetItem = {
     name: string;
     category: string;
     image: string;
+    color?: string;
 };
 
 type RecentOutfit = {
@@ -47,6 +49,12 @@ type RecentOutfit = {
     name: string;
     image: string;
     rawItemDetails?: any;
+};
+
+// ── Helper: deterministic daily seed from date + items ─────────────────────
+const getDailySeed = () => {
+    const now = new Date();
+    return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
 };
 
 const HomeScreen = () => {
@@ -61,22 +69,27 @@ const HomeScreen = () => {
     const [recentItems, setRecentItems] = useState<RecentClosetItem[]>([]);
     const [recentOutfits, setRecentOutfits] = useState<RecentOutfit[]>([]);
     const [photoURL, setPhotoURL] = useState<string | null>(null);
+    const [fullName, setFullName] = useState<string>('');
 
     // ── 1. Data Fetching ────────────────────────────────
     useEffect(() => {
         if (!user) return;
 
-        // Profile Photo
+        // Profile Photo + Name
         const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-            if (snap.exists()) setPhotoURL(snap.data()?.photoURL || null);
+            if (snap.exists()) {
+                const data = snap.data();
+                setPhotoURL(data?.photoURL || null);
+                setFullName(data?.fullName || '');
+            }
         });
 
-        // Recent Items
+        // Recent Items (fetch more for Today's Pick pool)
         const itemsQuery = query(
             collection(db, 'closetItems'),
             where('userId', '==', user.uid),
             orderBy('createdAt', 'desc'),
-            limit(5),
+            limit(20),
         );
         const unsubItems = onSnapshot(itemsQuery, snapshot => {
             setRecentItems(
@@ -87,17 +100,18 @@ const HomeScreen = () => {
                         name: data.title || 'Untitled item',
                         category: data.category || 'Uncategorized',
                         image: data.imageURL || '',
+                        color: data.color || '',
                     };
                 }),
             );
         });
 
-        // Recent Outfits (Limit to 1 as requested)
+        // Recent Outfits (Limit to 3 for rotation)
         const outfitsQuery = query(
             collection(db, 'outfits'),
             where('userId', '==', user.uid),
             orderBy('createdAt', 'desc'),
-            limit(1),
+            limit(3),
         );
         const unsubOutfits = onSnapshot(outfitsQuery, snapshot => {
             setRecentOutfits(
@@ -122,6 +136,55 @@ const HomeScreen = () => {
             unsubOutfits();
         };
     }, [db, user]);
+
+    // ── Personalized Greeting ─────────────────────────────
+    const greeting = useMemo(() => {
+        const firstName = fullName.split(' ')[0]?.trim();
+        if (firstName) {
+            return `What are you wearing today, ${firstName}?`;
+        }
+        return 'What are you wearing today?';
+    }, [fullName]);
+
+    // ── Today's Pick: rotate based on date + closet items ─────────────
+    const todaysPick = useMemo(() => {
+        if (recentItems.length === 0) return null;
+        const seed = getDailySeed();
+        const index = seed % recentItems.length;
+        return recentItems[index];
+    }, [recentItems]);
+
+    // ── Wear This handler ─────────────────────────────────
+    const handleWearThis = useCallback(() => {
+        if (recentOutfits.length > 0) {
+            const outfit = recentOutfits[0];
+            const itemsArray = Object.entries(outfit.rawItemDetails || {}).map(
+                ([id, detail]: [string, any]) => ({
+                    id,
+                    title: detail.title,
+                    category: detail.category,
+                    color: detail.color,
+                    imageURL: detail.imageURL,
+                }),
+            );
+            navigation.navigate('preview', { items: itemsArray, isSaved: true });
+        } else {
+            Alert.alert(
+                'No Outfits Yet',
+                'Create your first outfit to use Wear This!',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Create Now', onPress: () => navigation.navigate('combine') },
+                ],
+            );
+        }
+    }, [recentOutfits, navigation]);
+
+    // ── Build Another handler ─────────────────────────────
+    const handleBuildAnother = useCallback(() => {
+        // Pass a random seed so the combine screen can shuffle default selections
+        navigation.navigate('combine', { seed: Date.now() });
+    }, [navigation]);
 
     // ── 2. Search Logic ─────────────────────────────────
     const [searchVisible, setSearchVisible] = useState(false);
@@ -204,7 +267,7 @@ const HomeScreen = () => {
                             <User size={18} color="#94A3B8" />
                         </View>
                     )}
-                    <Text style={styles.headerText}>What are you wearing today?</Text>
+                    <Text style={styles.headerText}>{greeting}</Text>
                 </View>
 
                 <View style={styles.headerRight}>
@@ -292,21 +355,43 @@ const HomeScreen = () => {
                         <Sparkles size={20} color="#fff" />
                     </TouchableOpacity>
 
-                    {/* Today's Pick Banner */}
-                    <View style={styles.todayPick}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600' }} style={styles.todayPickImage} />
+                    {/* Today's Pick Banner — Dynamic from closet */}
+                    <TouchableOpacity
+                        style={styles.todayPick}
+                        activeOpacity={0.85}
+                        onPress={() => navigation.navigate('Closet')}
+                    >
+                        <Image
+                            source={{
+                                uri: todaysPick?.image ||
+                                    'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600',
+                            }}
+                            style={styles.todayPickImage}
+                        />
                         <View style={styles.todayPickOverlay}>
                             <Text style={styles.todayPickLabel}>Today's Pick</Text>
-                            <Text style={styles.todayPickTitle}>Casual sunny{'\n'}day look</Text>
+                            <Text style={styles.todayPickTitle}>
+                                {todaysPick
+                                    ? `${todaysPick.category}${'\n'}${todaysPick.name}`
+                                    : `Casual sunny${'\n'}day look`}
+                            </Text>
                         </View>
-                    </View>
+                    </TouchableOpacity>
 
                     {/* Wear / Build Tabs */}
                     <View style={styles.tabRow}>
-                        <TouchableOpacity style={[styles.tabBtn, activeTab === 'wear' && styles.tabBtnActive]} onPress={() => setActiveTab('wear')} activeOpacity={0.8}>
+                        <TouchableOpacity
+                            style={[styles.tabBtn, activeTab === 'wear' && styles.tabBtnActive]}
+                            onPress={handleWearThis}
+                            activeOpacity={0.8}
+                        >
                             <Text style={[styles.tabText, activeTab === 'wear' && styles.tabTextActive]}>Wear This</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.tabBtn, activeTab === 'build' && styles.tabBtnActive]} onPress={() => navigation.navigate('combine')} activeOpacity={0.8}>
+                        <TouchableOpacity
+                            style={[styles.tabBtn, activeTab === 'build' && styles.tabBtnActive]}
+                            onPress={handleBuildAnother}
+                            activeOpacity={0.8}
+                        >
                             <Text style={[styles.tabText, activeTab === 'build' && styles.tabTextActive]}>Build Another</Text>
                         </TouchableOpacity>
                     </View>
@@ -321,7 +406,7 @@ const HomeScreen = () => {
                             </TouchableOpacity>
                         </View>
                         <View style={styles.itemsRow}>
-                            {recentItems.length > 0 ? recentItems.map(item => (
+                            {recentItems.length > 0 ? recentItems.slice(0, 5).map(item => (
                                 <TouchableOpacity key={item.id} style={styles.itemCard} activeOpacity={0.8} onPress={() => navigation.navigate('Closet')}>
                                     {item.image ? <Image source={{ uri: item.image }} style={styles.itemImage} /> : <View style={styles.itemImage} />}
                                     <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
