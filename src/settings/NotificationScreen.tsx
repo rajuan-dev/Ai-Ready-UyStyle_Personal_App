@@ -25,6 +25,7 @@ import {
     updateDoc,
     writeBatch,
     getDocs,
+    getDoc,
 } from '../firebase/firestore';
 
 // ─── Data Types ───────────────────────────────────────────────────────────────
@@ -36,6 +37,8 @@ type Notification = {
     createdAt: any;
     type: string;
     isRead: boolean;
+    screen?: string | null;  // optional navigation target
+    metadata?: any;
 };
 
 // ─── Timestamp Formatting Helper ──────────────────────────────────────────────
@@ -81,6 +84,7 @@ const NotificationScreen = () => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [clearing, setClearing] = useState(false);
+    const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
     // ── Sync notifications from Firestore ─────────────────────────────────────
     useEffect(() => {
@@ -149,13 +153,56 @@ const NotificationScreen = () => {
         );
     };
 
-    const handleMarkAsRead = async (id: string) => {
-        if (!user) return;
+    const handleNotifPress = async (item: Notification) => {
+        if (!user || navigatingId) return;
+        // 1. Mark as read
         try {
-            const notifRef = doc(db, 'notifications', id);
+            const notifRef = doc(db, 'notifications', item.id);
             await updateDoc(notifRef, { isRead: true });
         } catch (error) {
             console.warn('Failed to mark notification as read:', error);
+        }
+        // 2. Navigate to the linked screen (if any)
+        if (item.screen) {
+            if (item.screen === 'preview' && item.metadata?.itemIds && Array.isArray(item.metadata.itemIds)) {
+                setNavigatingId(item.id);
+                try {
+                    const fetchPromises = item.metadata.itemIds.map(async (itemId: string) => {
+                        try {
+                            const itemRef = doc(db, 'closetItems', itemId);
+                            const itemSnap = await getDoc(itemRef);
+                            if (itemSnap.exists()) {
+                                const data = itemSnap.data();
+                                return {
+                                    id: itemSnap.id,
+                                    title: data.title || 'Untitled item',
+                                    category: data.category || 'Uncategorized',
+                                    color: data.color || '',
+                                    imageURL: data.imageURL || '',
+                                };
+                            }
+                        } catch (err) {
+                            console.warn(`[Notifications] Failed to fetch item ${itemId}:`, err);
+                        }
+                        return null;
+                    });
+                    const results = await Promise.all(fetchPromises);
+                    const fetchedItems = results.filter((i): i is NonNullable<typeof i> => i !== null);
+                    
+                    if (fetchedItems.length === 0) {
+                        showError('Outfit Unavailable', 'The items in this outfit are no longer in your closet.');
+                    } else {
+                        (navigation as any).navigate('preview', { items: fetchedItems, isSaved: false });
+                    }
+                } catch (error) {
+                    console.warn('[Notifications] Error preparing preview:', error);
+                    showError('Error', 'Failed to load outfit preview. Please try again.');
+                } finally {
+                    setNavigatingId(null);
+                }
+            } else {
+                (navigation as any).navigate(item.screen);
+            }
         }
     };
 
@@ -207,10 +254,14 @@ const NotificationScreen = () => {
                                 key={item.id}
                                 style={[styles.notifCard, !item.isRead && styles.unreadCard]}
                                 activeOpacity={0.75}
-                                onPress={() => handleMarkAsRead(item.id)}
+                                onPress={() => handleNotifPress(item)}
                             >
                                 <View style={[styles.iconContainer, { backgroundColor: item.isRead ? '#F1F5F9' : '#fff' }]}>
-                                    {getIcon(item.type)}
+                                    {navigatingId === item.id ? (
+                                        <ActivityIndicator size="small" color="#2869BD" />
+                                    ) : (
+                                        getIcon(item.type)
+                                    )}
                                 </View>
 
                                 <View style={styles.notifTextContent}>

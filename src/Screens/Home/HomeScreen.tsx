@@ -22,7 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import { OutfitCollage } from '../../components/OutfitCollage';
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
-import { addNotification } from '../../utils/notifications';
+import { addNotification, upsertNotification } from '../../utils/notifications';
 import {
     getFirestore,
     doc,
@@ -330,13 +330,20 @@ const HomeScreen = () => {
         setRecommendationSeed(newSeed);
 
         if (user) {
-            addNotification(
+            // Compute the new outfit items immediately so we can store their IDs in the notification
+            const newOutfitItems = getOutfitForSeed(newSeed);
+            const newItemIds = newOutfitItems.map(i => i.id);
+
+            upsertNotification(
                 user.uid,
-                'New Outfit Picked',
-                'We generated a fresh daily outfit pick for you. Tap "Wear This" to preview!',
-                'recommendation'
+                'New Outfit Picked ✦',
+                'We generated a fresh outfit pick for you. Tap to preview it now!',
+                'recommendation',
+                'preview',
+                { itemIds: newItemIds }
             );
         }
+
     }, [recommendationSeed, recommendedOutfit, getOutfitForSeed, user]);
 
     // ── 2. Search Logic ─────────────────────────────────
