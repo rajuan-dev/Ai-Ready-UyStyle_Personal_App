@@ -7,8 +7,8 @@ import {
     StyleSheet,
     StatusBar,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
+import { useAppAlert } from '../context/AlertContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Sparkles, Package, CheckCircle2, Info, Bell } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -76,6 +76,7 @@ const NotificationScreen = () => {
     const auth = getAuth(app);
     const db = getFirestore(app);
     const user = auth.currentUser;
+    const { showConfirm, showError } = useAppAlert();
 
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
@@ -122,36 +123,29 @@ const NotificationScreen = () => {
         }
     };
 
-    const handleClearAll = async () => {
+    const handleClearAll = () => {
         if (clearing || notifications.length === 0 || !user) return;
 
-        Alert.alert(
+        showConfirm(
             'Clear All Notifications',
-            'Are you sure you want to delete all notifications? This action cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete All',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setClearing(true);
-                        try {
-                            const batch = writeBatch(db);
-                            const q = query(collection(db, 'notifications'), where('userId', '==', user.uid));
-                            const snap = await getDocs(q);
-                            snap.docs.forEach((docSnap) => {
-                                batch.delete(docSnap.ref);
-                            });
-                            await batch.commit();
-                        } catch (error) {
-                            console.warn('Failed to clear notifications:', error);
-                            Alert.alert('Error', 'Failed to clear notifications. Please try again.');
-                        } finally {
-                            setClearing(false);
-                        }
-                    }
+            'This will permanently delete all your notifications. This action cannot be undone.',
+            async () => {
+                setClearing(true);
+                try {
+                    const batch = writeBatch(db);
+                    const q = query(collection(db, 'notifications'), where('userId', '==', user.uid));
+                    const snap = await getDocs(q);
+                    snap.docs.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                    });
+                    await batch.commit();
+                } catch (error) {
+                    console.warn('Failed to clear notifications:', error);
+                    showError('Failed to Clear', 'Something went wrong. Please try again.');
+                } finally {
+                    setClearing(false);
                 }
-            ]
+            }
         );
     };
 
