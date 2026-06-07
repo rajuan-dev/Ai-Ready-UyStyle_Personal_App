@@ -43,10 +43,20 @@ let profileCache: {
     outfitCount: number;
     likesCount: number;
     likedPreviews: { id: string; imageURL: string }[];
+    stylePrefSub: string;
     timestamp: number;
 } | null = null;
 
 const CACHE_TTL = 60_000; // 1 minute — skip network if fresh
+
+const STYLE_LABELS: Record<string, string> = {
+    casual: 'Casual',
+    formal: 'Formal',
+    gym: 'Gym',
+    streetwear: 'Streetwear',
+    boho: 'Boho',
+    minimalist: 'Minimalist',
+};
 
 const menuItems = [
     { label: 'Notifications',    danger: false, screen: 'notification'    },
@@ -72,6 +82,7 @@ const ProfileScreen = () => {
     const [likedPreviews, setLikedPreviews] = useState<{ id: string; imageURL: string }[]>(
         profileCache?.likedPreviews ?? []
     );
+    const [stylePrefSub,  setStylePrefSub]  = useState(profileCache?.stylePrefSub ?? 'Casual, Gym, Formal');
 
     const [refreshing,    setRefreshing]    = useState(false);
 
@@ -90,6 +101,7 @@ const ProfileScreen = () => {
             setOutfitCount(profileCache.outfitCount);
             setLikesCount(profileCache.likesCount);
             setLikedPreviews(profileCache.likedPreviews);
+            setStylePrefSub(profileCache.stylePrefSub);
             setLoading(false);
             setCountsLoading(false);
             return;
@@ -108,7 +120,7 @@ const ProfileScreen = () => {
         const uid = user.uid;
 
         try {
-            const [profileSnap, closetSnap, outfitsSnap, likesSnap, previewSnap] =
+            const [profileSnap, closetSnap, outfitsSnap, likesSnap, previewSnap, prefsSnap] =
                 await Promise.all([
                     getDoc(doc(db, 'users', uid)),
                     getCountFromServer(
@@ -128,6 +140,7 @@ const ProfileScreen = () => {
                             limit(2)
                         )
                     ),
+                    getDoc(doc(db, 'stylePrefs', uid)),
                 ]);
 
             let name = '';
@@ -164,6 +177,27 @@ const ProfileScreen = () => {
             const validPreviews = previews.filter(p => p.imageURL !== '');
             setLikedPreviews(validPreviews);
 
+            let prefsSub = 'Tap to set preferences';
+            if (prefsSnap.exists()) {
+                const prefsData = prefsSnap.data();
+                const stylesList = prefsData?.styles || prefsData?.style || prefsData?.stylePreferences || [];
+                const occasionsList = prefsData?.occasions || prefsData?.occasion || [];
+                const colorsList = prefsData?.colors || prefsData?.color || [];
+
+                const styleLabels = stylesList
+                    .map((styleId: string) => STYLE_LABELS[styleId] || styleId)
+                    .filter(Boolean);
+
+                if (styleLabels.length > 0) {
+                    prefsSub = styleLabels.join(', ');
+                } else if (occasionsList.length > 0 || colorsList.length > 0) {
+                    prefsSub = 'Preferences set';
+                } else {
+                    prefsSub = 'Flexible Vibe';
+                }
+            }
+            setStylePrefSub(prefsSub);
+
             profileCache = {
                 fullName: name,
                 photoURL: photo,
@@ -171,6 +205,7 @@ const ProfileScreen = () => {
                 outfitCount: cOutfits,
                 likesCount: cLikes,
                 likedPreviews: validPreviews,
+                stylePrefSub: prefsSub,
                 timestamp: Date.now(),
             };
         } catch (e: any) {
@@ -292,7 +327,7 @@ const ProfileScreen = () => {
                         </View>
                         <View>
                             <Text style={styles.stylePrefTitle}>Style Preferences</Text>
-                            <Text style={styles.stylePrefSub}>Casual, Gym, Formal</Text>
+                            <Text style={styles.stylePrefSub}>{stylePrefSub}</Text>
                         </View>
                     </View>
                     <ChevronRight size={18} color="#94a3b8" />

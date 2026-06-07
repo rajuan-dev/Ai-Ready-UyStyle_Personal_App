@@ -23,6 +23,7 @@ import {
     serverTimestamp,
 } from '../../firebase/firestore';
 import { getAuth } from '../../firebase/auth';
+import { invalidateProfileCache } from './ProfileScreen';
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface StyleCategory {
@@ -53,6 +54,7 @@ const styleCategories: StyleCategory[] = [
 ];
 
 const occasions: OccasionItem[] = [
+    { id: 'any_occasion', label: 'Any Occasion' },
     { id: 'work',    label: 'Work'      },
     { id: 'date',    label: 'Date Night' },
     { id: 'weekend', label: 'Weekend'   },
@@ -64,6 +66,7 @@ const occasions: OccasionItem[] = [
 ];
 
 const colors: ColorItem[] = [
+    { id: 'any_color', color: 'transparent', label: 'Any Color' },
     { id: 'black', color: '#1a1a1a', label: 'Black' },
     { id: 'white', color: '#f5f5f5', label: 'White' },
     { id: 'navy',  color: '#1e3a5f', label: 'Navy'  },
@@ -97,17 +100,41 @@ const StylePreferenceScreen = ({ navigation }: any) => {
         return doc(db, 'stylePrefs', user.uid);
     };
 
-    // ─── Toggle helper ────────────────────────────────────────────────────────
-    const toggleItem = (
-        id: string,
-        selected: string[],
-        setSelected: (val: string[]) => void,
-    ) => {
-        setSelected(
-            selected.includes(id)
-                ? selected.filter(s => s !== id)
-                : [...selected, id],
+    // ─── Toggle helpers ───────────────────────────────────────────────────────
+    const toggleStyle = (id: string) => {
+        setSelectedStyles(prev =>
+            prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
         );
+    };
+
+    const toggleOccasion = (id: string) => {
+        if (id === 'any_occasion') {
+            setSelectedOccasions(prev => prev.includes('any_occasion') ? [] : ['any_occasion']);
+        } else {
+            setSelectedOccasions(prev => {
+                const filtered = prev.filter(o => o !== 'any_occasion');
+                if (filtered.includes(id)) {
+                    return filtered.filter(o => o !== id);
+                } else {
+                    return [...filtered, id];
+                }
+            });
+        }
+    };
+
+    const toggleColor = (id: string) => {
+        if (id === 'any_color') {
+            setSelectedColors(prev => prev.includes('any_color') ? [] : ['any_color']);
+        } else {
+            setSelectedColors(prev => {
+                const filtered = prev.filter(c => c !== 'any_color');
+                if (filtered.includes(id)) {
+                    return filtered.filter(c => c !== id);
+                } else {
+                    return [...filtered, id];
+                }
+            });
+        }
     };
 
     // ─── Fetch existing preferences on mount ──────────────────────────────────
@@ -123,9 +150,12 @@ const StylePreferenceScreen = ({ navigation }: any) => {
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if (data?.styles)    setSelectedStyles(data.styles);
-                    if (data?.occasions) setSelectedOccasions(data.occasions);
-                    if (data?.colors)    setSelectedColors(data.colors);
+                    const stylesList = data?.styles || data?.style || data?.stylePreferences || [];
+                    const occasionsList = data?.occasions || data?.occasion || [];
+                    const colorsList = data?.colors || data?.color || [];
+                    setSelectedStyles(stylesList);
+                    setSelectedOccasions(occasionsList);
+                    setSelectedColors(colorsList);
                 }
             } catch (error: any) {
                 console.error('Error fetching preferences:', error);
@@ -136,24 +166,11 @@ const StylePreferenceScreen = ({ navigation }: any) => {
         };
 
         fetchPreferences();
-    }, []);
+    }, [showError]);
 
     // ─── Save to Firestore ────────────────────────────────────────────────────
     const handleSave = async () => {
         if (saving) return;
-
-        if (selectedStyles.length === 0) {
-            Alert.alert('Style Required', 'Please select at least one style.');
-            return;
-        }
-        if (selectedOccasions.length === 0) {
-            Alert.alert('Occasion Required', 'Please select at least one occasion.');
-            return;
-        }
-        if (selectedColors.length === 0) {
-            Alert.alert('Color Required', 'Please select at least one color.');
-            return;
-        }
 
         setSaving(true);
         try {
@@ -173,6 +190,8 @@ const StylePreferenceScreen = ({ navigation }: any) => {
                 },
                 { merge: true },
             );
+
+            invalidateProfileCache(); // Force refresh on profile screen
 
             setSaved(true);
             setTimeout(() => {
@@ -237,7 +256,7 @@ const StylePreferenceScreen = ({ navigation }: any) => {
                                     key={item.id}
                                     style={[styles.styleCard, isSelected && styles.styleCardSelected]}
                                     activeOpacity={0.8}
-                                    onPress={() => toggleItem(item.id, selectedStyles, setSelectedStyles)}
+                                    onPress={() => toggleStyle(item.id)}
                                 >
                                     {isSelected && (
                                         <View style={styles.checkBadge}>
@@ -269,7 +288,7 @@ const StylePreferenceScreen = ({ navigation }: any) => {
                                     key={item.id}
                                     style={[styles.chip, isSelected && styles.chipSelected]}
                                     activeOpacity={0.8}
-                                    onPress={() => toggleItem(item.id, selectedOccasions, setSelectedOccasions)}
+                                    onPress={() => toggleOccasion(item.id)}
                                 >
                                     <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                                         {item.label}
@@ -292,15 +311,24 @@ const StylePreferenceScreen = ({ navigation }: any) => {
                                     key={item.id}
                                     style={styles.colorItem}
                                     activeOpacity={0.8}
-                                    onPress={() => toggleItem(item.id, selectedColors, setSelectedColors)}
+                                    onPress={() => toggleColor(item.id)}
                                 >
                                     <View style={[
                                         styles.colorCircle,
                                         { backgroundColor: item.color },
+                                        item.id === 'any_color' && { borderWidth: 1.5, borderColor: '#94a3b8', borderStyle: 'dashed' },
                                         isSelected && styles.colorCircleSelected,
                                     ]}>
-                                        {isSelected && (
-                                            <Check size={14} color={item.id === 'white' ? '#1E293B' : '#fff'} />
+                                        {item.id === 'any_color' ? (
+                                            isSelected ? (
+                                                <Check size={14} color="#2869BD" />
+                                            ) : (
+                                                <Text style={{ fontSize: 16 }}>🎨</Text>
+                                            )
+                                        ) : (
+                                            isSelected && (
+                                                <Check size={14} color={item.id === 'white' ? '#1E293B' : '#fff'} />
+                                            )
                                         )}
                                     </View>
                                     <Text style={[styles.colorLabel, isSelected && styles.colorLabelSelected]}>

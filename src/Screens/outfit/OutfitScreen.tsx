@@ -4,7 +4,6 @@ import {
     Text,
     ScrollView,
     TouchableOpacity,
-    Image,
     StatusBar,
     Animated,
     FlatList,
@@ -38,6 +37,7 @@ import {
 } from '../../firebase/firestore';
 import { styles } from './style';
 import { getTabScreenBottomPadding } from '../../theme/layout';
+import { OutfitCollage } from '../../components/OutfitCollage';
 
 // --- Types ---
 type OutfitItem = {
@@ -110,6 +110,11 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
         }).start();
     }, [isActive, xScale]);
 
+    const images = Object.values(item.rawItemDetails || {}).map((detail: any) => detail.imageURL).filter(Boolean);
+    if (images.length === 0 && item.imageURL) {
+        images.push(item.imageURL);
+    }
+
     return (
         <TouchableOpacity
             activeOpacity={0.9}
@@ -118,11 +123,7 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
         >
             <View style={[styles.card, isActive && styles.cardActive]}>
                 <View style={styles.imageWrapper}>
-                    {item.imageURL ? (
-                        <Image source={{ uri: item.imageURL }} style={styles.itemImage} resizeMode="cover" />
-                    ) : (
-                        <View style={styles.imageFallback}><Text>{item.title[0]}</Text></View>
-                    )}
+                    <OutfitCollage images={images} />
 
                     <Animated.View style={[styles.deleteBadge, { transform: [{ scale: xScale }] }]}>
                         <TouchableOpacity style={styles.deleteBadgeInner} onPress={() => onDelete(item)}>
@@ -344,18 +345,18 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                                     fired={firedIds.has(item.id)}
                                     onCardPress={setActiveCardId}
                                     onDelete={handleDelete}
-                                    onOutfitPress={(item: OutfitItem) => {
+                                    onOutfitPress={(outfitItem: OutfitItem) => {
                                         if (onOutfitPress) {
-                                            onOutfitPress(item);
+                                            onOutfitPress(outfitItem);
                                         } else {
-                                            const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
+                                            const itemsArray = Object.entries(outfitItem.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
                                                 id,
                                                 title: detail.title,
                                                 category: detail.category,
                                                 color: detail.color,
                                                 imageURL: detail.imageURL,
                                             }));
-                                            navigation.navigate('preview', { items: itemsArray, isSaved: true });
+                                            navigation.navigate('preview', { items: itemsArray, isSaved: true, outfitId: outfitItem.id });
                                         }
                                     }}
                                     onToggleFire={handleToggleFire}

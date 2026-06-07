@@ -3,6 +3,7 @@ import React, {
     useState,
     useMemo,
     useCallback,
+    useRef,
 } from 'react';
 import {
     View,
@@ -47,6 +48,7 @@ import {
     writeBatch,
     getDocs,
     getCountFromServer,
+    updateDoc,
 } from '../../firebase/firestore';
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
@@ -119,12 +121,20 @@ const resolveSlot = (category: string, slots: OutfitSlot[]): string => {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const CombineScreen = ({ navigation }: any) => {
+const CombineScreen = ({ route, navigation }: any) => {
+    const { editItems = [], outfitId = null } = route?.params || {};
 
     const app  = getApp();
     const auth = getAuth(app);
     const db   = getFirestore(app);
     const user = auth.currentUser;
+
+    const loadedEditRef = useRef(false);
+
+    // Reset edit loaded state when outfitId changes
+    useEffect(() => {
+        loadedEditRef.current = false;
+    }, [outfitId]);
 
     // ── State ────────────────────────────────────────────────────────────────
 
@@ -198,6 +208,22 @@ const CombineScreen = ({ navigation }: any) => {
             },
         );
     }, [user?.uid]);
+
+    // Pre-populate slotMap when editing a saved outfit
+    useEffect(() => {
+        if (editItems && editItems.length > 0 && closetItems.length > 0 && !loadedEditRef.current) {
+            const nextMap = { ...slotMap };
+            editItems.forEach((item: any) => {
+                const matched = closetItems.find(c => c.id === item.id);
+                if (matched) {
+                    const slotId = resolveSlot(matched.category, allSlots);
+                    nextMap[slotId] = matched;
+                }
+            });
+            setSlotMap(nextMap);
+            loadedEditRef.current = true;
+        }
+    }, [editItems, closetItems, allSlots, slotMap]);
 
     // ── Firebase: custom slots ───────────────────────────────────────────────
 
@@ -406,21 +432,31 @@ const CombineScreen = ({ navigation }: any) => {
                 ])
             );
 
-            // Fetch current count to number the outfit
-            const qCount = query(collection(db, 'outfits'), where('userId', '==', user.uid));
-            const countSnap = await getCountFromServer(qCount);
-            const nextNumber = (countSnap.data().count ?? 0) + 1;
-            const outfitName = `Outfit ${nextNumber}`;
+            if (outfitId) {
+                const outfitRef = doc(db, 'outfits', outfitId);
+                await updateDoc(outfitRef, {
+                    items,        // { [slotId]: itemId }
+                    itemDetails,  // { [itemId]: ItemDetail }
+                    updatedAt:   serverTimestamp(),
+                });
+                navigation.setParams({ editItems: undefined, outfitId: undefined });
+                navigation.navigate('saveSuccess', { isOutfit: true, isEdit: true });
+            } else {
+                // Fetch current count to number the outfit
+                const qCount = query(collection(db, 'outfits'), where('userId', '==', user.uid));
+                const countSnap = await getCountFromServer(qCount);
+                const nextNumber = (countSnap.data().count ?? 0) + 1;
+                const outfitName = `Outfit ${nextNumber}`;
 
-            await addDoc(collection(db, 'outfits'), {
-                userId:      user.uid,
-                name:        outfitName,
-                items,        // { [slotId]: itemId }
-                itemDetails,  // { [itemId]: ItemDetail }
-                createdAt:   serverTimestamp(),
-            });
-
-            navigation.navigate('saveSuccess', { items: selectedItems });
+                await addDoc(collection(db, 'outfits'), {
+                    userId:      user.uid,
+                    name:        outfitName,
+                    items,        // { [slotId]: itemId }
+                    itemDetails,  // { [itemId]: ItemDetail }
+                    createdAt:   serverTimestamp(),
+                });
+                navigation.navigate('saveSuccess', { isOutfit: true, isEdit: false });
+            }
 
         } catch (err) {
             console.warn(err);

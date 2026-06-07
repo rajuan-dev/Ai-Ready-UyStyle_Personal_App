@@ -9,7 +9,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckCircle } from 'lucide-react-native';
 
-const SaveSuccessScreen = ({ navigation }: any) => {
+const SaveSuccessScreen = ({ route, navigation }: any) => {
+    const { isOutfit = false, isEdit = false } = route?.params || {};
+
+    const titleText = isOutfit
+        ? (isEdit ? 'Outfit updated successfully' : 'Outfit saved successfully')
+        : 'Item added successfully';
+
+    const subtitleText = isOutfit
+        ? (isEdit ? 'Your outfit changes have been saved.' : 'Your new look is now saved in your wardrobe.')
+        : 'Your item is now available in your closet.';
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -21,33 +31,55 @@ const SaveSuccessScreen = ({ navigation }: any) => {
                 </View>
 
                 {/* Text */}
-                <Text style={styles.title}>Item added successfully</Text>
-                <Text style={styles.subtitle}>Your item is now available in your closet.</Text>
+                <Text style={styles.title}>{titleText}</Text>
+                <Text style={styles.subtitle}>{subtitleText}</Text>
 
                 {/* Buttons */}
-                <TouchableOpacity
-                    style={styles.primaryBtn}
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate('combine')}
-                >
-                    <Text style={styles.primaryBtnText}>Add Another Item</Text>
-                </TouchableOpacity>
+                {isOutfit ? (
+                    <>
+                        <TouchableOpacity
+                            style={styles.primaryBtn}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate('bottombar', { screen: 'Outfits' })}
+                        >
+                            <Text style={styles.primaryBtnText}>View Saved Outfits</Text>
+                        </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.ghostBtn}
-                    activeOpacity={1}
-                    onPress={() => navigation.navigate('bottombar')}
-                >
-                    <Text style={styles.ghostBtnText}>Go to Closet</Text>
-                </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.ghostBtn}
+                            activeOpacity={1}
+                            onPress={() => navigation.navigate('bottombar', { screen: 'Home' })}
+                        >
+                            <Text style={styles.ghostBtnText}>Go to Home</Text>
+                        </TouchableOpacity>
+                    </>
+                ) : (
+                    <>
+                        <TouchableOpacity
+                            style={styles.primaryBtn}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate('combine')}
+                        >
+                            <Text style={styles.primaryBtnText}>Add Another Item</Text>
+                        </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.ghostBtn}
-                    activeOpacity={1}
-                    onPress={() => navigation.navigate('combine')}
-                >
-                    <Text style={styles.ghostBtnText}>Build Outfit</Text>
-                </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.ghostBtn}
+                            activeOpacity={1}
+                            onPress={() => navigation.navigate('bottombar', { screen: 'Closet' })}
+                        >
+                            <Text style={styles.ghostBtnText}>Go to Closet</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.ghostBtn}
+                            activeOpacity={1}
+                            onPress={() => navigation.navigate('combine')}
+                        >
+                            <Text style={styles.ghostBtnText}>Build Outfit</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
         </SafeAreaView>
     );

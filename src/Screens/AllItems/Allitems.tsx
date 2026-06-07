@@ -4,7 +4,6 @@ import {
     View,
     Text,
     FlatList,
-    Image,
     TouchableOpacity,
     StatusBar,
     ActivityIndicator,
@@ -14,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Flame, Shirt } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { OutfitCollage } from '../../components/OutfitCollage';
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
 import {
@@ -151,6 +151,11 @@ const AllitemsScreen = () => {
 
     const renderItem = ({ item, index }: { item: OutfitItem; index: number }) => {
         const displayTitle = item.title === 'Outfit' ? `Outfit ${items.length - index}` : item.title;
+        const images = Object.values(item.rawItemDetails || {}).map((detail: any) => detail.imageURL).filter(Boolean);
+        if (images.length === 0 && item.imageURL) {
+            images.push(item.imageURL);
+        }
+
         return (
             <TouchableOpacity
                 style={s.card}
@@ -163,16 +168,12 @@ const AllitemsScreen = () => {
                         color: detail.color,
                         imageURL: detail.imageURL,
                     }));
-                    navigation.navigate('preview', { items: itemsArray, isSaved: true });
+                    navigation.navigate('preview', { items: itemsArray, isSaved: true, outfitId: item.id });
                 }}
             >
-                {item.imageURL ? (
-                    <Image source={{ uri: item.imageURL }} style={s.cardImage} resizeMode="cover" />
-                ) : (
-                    <View style={[s.cardImage, s.cardFallback]}>
-                        <Shirt size={28} color="#CBD5E1" />
-                    </View>
-                )}
+                <View style={s.cardImage}>
+                    <OutfitCollage images={images} />
+                </View>
                 <View style={s.cardInfo}>
                     <Text style={s.cardTitle} numberOfLines={1}>{displayTitle}</Text>
                     <View style={s.metaRow}>

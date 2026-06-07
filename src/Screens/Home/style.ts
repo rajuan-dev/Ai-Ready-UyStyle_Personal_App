@@ -112,7 +112,7 @@ export const styles = StyleSheet.create({
         marginBottom: 16,
         borderRadius: 12,
         overflow: 'hidden',
-        height: 180,
+        height: 280,
     },
     todayPickImage: {
         width: '100%',

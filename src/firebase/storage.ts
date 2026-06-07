@@ -5,4 +5,5 @@ export {
   ref,
   ref as refFromURL,
   uploadBytesResumable,
+  uploadString,
 } from 'firebase/storage';

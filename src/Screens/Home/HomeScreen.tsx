@@ -16,9 +16,10 @@ import {
     Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronRight, Search, Sparkles, Zap, X, User, Flame } from 'lucide-react-native';
+import { Bell, ChevronRight, Search, Sparkles, Zap, X, User } from 'lucide-react-native';
 import { styles } from './style';
 import { useNavigation } from '@react-navigation/native';
+import { OutfitCollage } from '../../components/OutfitCollage';
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
 import {
@@ -59,7 +60,7 @@ const getDailySeed = () => {
 
 const HomeScreen = () => {
     const insets = useSafeAreaInsets();
-    const [activeTab, setActiveTab] = useState<'wear' | 'build'>('wear');
+
     const navigation = useNavigation<any>();
 
     const app = getApp();
@@ -70,6 +71,8 @@ const HomeScreen = () => {
     const [recentOutfits, setRecentOutfits] = useState<RecentOutfit[]>([]);
     const [photoURL, setPhotoURL] = useState<string | null>(null);
     const [fullName, setFullName] = useState<string>('');
+    const [preferences, setPreferences] = useState<any>(null);
+    const [recommendationSeed, setRecommendationSeed] = useState<number>(getDailySeed());
 
     // ── 1. Data Fetching ────────────────────────────────
     useEffect(() => {
@@ -81,6 +84,16 @@ const HomeScreen = () => {
                 const data = snap.data();
                 setPhotoURL(data?.photoURL || null);
                 setFullName(data?.fullName || '');
+            }
+        });
+
+        // Style Preferences Sync
+        const prefsRef = doc(db, 'stylePrefs', user.uid);
+        const unsubPrefs = onSnapshot(prefsRef, (snap) => {
+            if (snap.exists()) {
+                setPreferences(snap.data());
+            } else {
+                setPreferences(null);
             }
         });
 
@@ -132,6 +145,7 @@ const HomeScreen = () => {
 
         return () => {
             unsubProfile();
+            unsubPrefs();
             unsubItems();
             unsubOutfits();
         };
@@ -146,45 +160,137 @@ const HomeScreen = () => {
         return 'What are you wearing today?';
     }, [fullName]);
 
-    // ── Today's Pick: rotate based on date + closet items ─────────────
-    const todaysPick = useMemo(() => {
-        if (recentItems.length === 0) return null;
-        const seed = getDailySeed();
-        const index = seed % recentItems.length;
-        return recentItems[index];
-    }, [recentItems]);
+    // ── Helper: generate recommended outfit for a specific seed ───────────
+    const getOutfitForSeed = useCallback((seed: number) => {
+        if (recentItems.length === 0) return [];
+
+        console.log('[Home] Generating recommendation. Total closet items:', recentItems.length, 'Seed:', seed);
+
+        // Group the entire unfiltered closet by categories first
+        const allTops = recentItems.filter(i => /top|shirt|sweater|blouse|tee|knit/i.test(i.category));
+        const allBottoms = recentItems.filter(i => /bottom|jean|trouser|pant|skirt|short/i.test(i.category));
+        const allShoes = recentItems.filter(i => /shoe|sneaker|boot|loafer|heel|sandal/i.test(i.category));
+        const allOuterwear = recentItems.filter(i => /outer|coat|jacket|blazer|trench/i.test(i.category));
+        const allAccessories = recentItems.filter(i => !/top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short|shoe|sneaker|boot|loafer|heel|sandal|outer|coat|jacket|blazer|trench/i.test(i.category));
+
+        // Color preference (Only apply on the initial daily recommendation pick)
+        const preferredColors = preferences?.colors || preferences?.color || [];
+        const isDailyPick = seed === getDailySeed();
+        const hasColorPref = isDailyPick && preferredColors.length > 0 && !preferredColors.includes('any_color');
+
+        // Apply color preference filter to a specific category list, falling back to full category list if no colors match
+        const getCategoryPool = (list: RecentClosetItem[]) => {
+            if (!hasColorPref) return list;
+            const filtered = list.filter(item => 
+                item.color && preferredColors.some((c: string) => c.toLowerCase() === item.color?.toLowerCase())
+            );
+            return filtered.length > 0 ? filtered : list;
+        };
+
+        const tops = getCategoryPool(allTops);
+        const bottoms = getCategoryPool(allBottoms);
+        const shoes = getCategoryPool(allShoes);
+        const outerwear = getCategoryPool(allOuterwear);
+        const accessories = getCategoryPool(allAccessories);
+
+        console.log('[Home] Smart category pools count:', {
+            tops: tops.length,
+            bottoms: bottoms.length,
+            shoes: shoes.length,
+            outerwear: outerwear.length,
+            accessories: accessories.length,
+        });
+
+        const recommended: RecentClosetItem[] = [];
+
+        const selectItem = (list: RecentClosetItem[]) => {
+            if (list.length === 0) return null;
+            return list[seed % list.length];
+        };
+
+        const top = selectItem(tops);
+        if (top) recommended.push(top);
+
+        const bottom = selectItem(bottoms);
+        if (bottom) recommended.push(bottom);
+
+        const shoe = selectItem(shoes);
+        if (shoe) recommended.push(shoe);
+
+        const outer = selectItem(outerwear);
+        if (outer) recommended.push(outer);
+
+        // Add accessory if available to enrich the recommendation
+        const acc = selectItem(accessories);
+        if (acc) recommended.push(acc);
+
+        // Fallback: if we still have nothing (e.g., no categories match), just return first few items from recent items
+        if (recommended.length === 0) {
+            return recentItems.slice(0, 3);
+        }
+
+        return recommended;
+    }, [recentItems, preferences]);
+
+    // ── Generate Recommended Outfit ───────────────────────
+    const recommendedOutfit = useMemo(() => {
+        return getOutfitForSeed(recommendationSeed);
+    }, [getOutfitForSeed, recommendationSeed]);
+
+    const recommendedOutfitMessage = useMemo(() => {
+        if (recentItems.length === 0) return 'Your closet is empty. Add items!';
+        if (recentItems.length === 1) return 'Only 1 item in closet. Add more for complete recommendations!';
+        if (recommendedOutfit.length === 1) return 'Add more categories to get full outfits!';
+        return recommendedOutfit.map(i => i.category).join(', ');
+    }, [recentItems, recommendedOutfit]);
 
     // ── Wear This handler ─────────────────────────────────
     const handleWearThis = useCallback(() => {
-        if (recentOutfits.length > 0) {
-            const outfit = recentOutfits[0];
-            const itemsArray = Object.entries(outfit.rawItemDetails || {}).map(
-                ([id, detail]: [string, any]) => ({
-                    id,
-                    title: detail.title,
-                    category: detail.category,
-                    color: detail.color,
-                    imageURL: detail.imageURL,
-                }),
-            );
-            navigation.navigate('preview', { items: itemsArray, isSaved: true });
+        if (recommendedOutfit.length > 0) {
+            const previewItems = recommendedOutfit.map(item => ({
+                id: item.id,
+                title: item.name,
+                category: item.category,
+                color: item.color || '',
+                imageURL: item.image,
+            }));
+            navigation.navigate('preview', { items: previewItems, isSaved: false });
         } else {
             Alert.alert(
-                'No Outfits Yet',
-                'Create your first outfit to use Wear This!',
+                'No Closet Items',
+                'Add items to your closet to get outfit recommendations!',
                 [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: 'Create Now', onPress: () => navigation.navigate('combine') },
+                    { text: 'Add Item', onPress: () => navigation.navigate('AddItemEditor') },
                 ],
             );
         }
-    }, [recentOutfits, navigation]);
+    }, [recommendedOutfit, navigation]);
 
     // ── Build Another handler ─────────────────────────────
     const handleBuildAnother = useCallback(() => {
-        // Pass a random seed so the combine screen can shuffle default selections
-        navigation.navigate('combine', { seed: Date.now() });
-    }, [navigation]);
+        let newSeed = recommendationSeed;
+        let attempts = 0;
+        const currentIds = recommendedOutfit.map(i => i.id).join(',');
+        
+        while (attempts < 30) {
+            const tempSeed = Math.floor(Math.random() * 1000000);
+            const tempOutfit = getOutfitForSeed(tempSeed);
+            const tempIds = tempOutfit.map(i => i.id).join(',');
+            if (tempIds !== currentIds || currentIds === '') {
+                newSeed = tempSeed;
+                break;
+            }
+            attempts++;
+        }
+        
+        if (newSeed === recommendationSeed) {
+            newSeed = Math.floor(Math.random() * 1000000);
+        }
+        
+        console.log('[Home] Build Another clicked. Seed changed from', recommendationSeed, 'to', newSeed);
+        setRecommendationSeed(newSeed);
+    }, [recommendationSeed, recommendedOutfit, getOutfitForSeed]);
 
     // ── 2. Search Logic ─────────────────────────────────
     const [searchVisible, setSearchVisible] = useState(false);
@@ -359,21 +465,13 @@ const HomeScreen = () => {
                     <TouchableOpacity
                         style={styles.todayPick}
                         activeOpacity={0.85}
-                        onPress={() => navigation.navigate('Closet')}
+                        onPress={handleWearThis}
                     >
-                        <Image
-                            source={{
-                                uri: todaysPick?.image ||
-                                    'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600',
-                            }}
-                            style={styles.todayPickImage}
-                        />
+                        <OutfitCollage images={recommendedOutfit.map(i => i.image)} />
                         <View style={styles.todayPickOverlay}>
                             <Text style={styles.todayPickLabel}>Today's Pick</Text>
-                            <Text style={styles.todayPickTitle}>
-                                {todaysPick
-                                    ? `${todaysPick.category}${'\n'}${todaysPick.name}`
-                                    : `Casual sunny${'\n'}day look`}
+                            <Text style={styles.todayPickTitle} numberOfLines={2}>
+                                {recommendedOutfitMessage}
                             </Text>
                         </View>
                     </TouchableOpacity>
@@ -381,18 +479,18 @@ const HomeScreen = () => {
                     {/* Wear / Build Tabs */}
                     <View style={styles.tabRow}>
                         <TouchableOpacity
-                            style={[styles.tabBtn, activeTab === 'wear' && styles.tabBtnActive]}
+                            style={[styles.tabBtn, styles.tabBtnActive]}
                             onPress={handleWearThis}
                             activeOpacity={0.8}
                         >
-                            <Text style={[styles.tabText, activeTab === 'wear' && styles.tabTextActive]}>Wear This</Text>
+                            <Text style={[styles.tabText, styles.tabTextActive]}>Wear This</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.tabBtn, activeTab === 'build' && styles.tabBtnActive]}
+                            style={styles.tabBtn}
                             onPress={handleBuildAnother}
                             activeOpacity={0.8}
                         >
-                            <Text style={[styles.tabText, activeTab === 'build' && styles.tabTextActive]}>Build Another</Text>
+                            <Text style={styles.tabText}>Build Another</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -426,26 +524,32 @@ const HomeScreen = () => {
                             </TouchableOpacity>
                         </View>
                         <View style={{ paddingHorizontal: 20 }}>
-                            {recentOutfits.length > 0 ? (
-                                <View style={localStyles.singleOutfitCard}>
-                                    <Image source={{ uri: recentOutfits[0].image }} style={localStyles.singleOutfitImg} resizeMode="cover" />
-                                    <View style={localStyles.singleOutfitInfo}>
-                                        <Text style={localStyles.singleOutfitName}>{recentOutfits[0].name}</Text>
-                                        <TouchableOpacity
-                                            style={localStyles.viewLookBtn}
-                                            onPress={() => {
-                                                const item = recentOutfits[0];
-                                                const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
-                                                    id, title: detail.title, category: detail.category, color: detail.color, imageURL: detail.imageURL,
-                                                }));
-                                                navigation.navigate('preview', { items: itemsArray, isSaved: true });
-                                            }}
-                                        >
-                                            <Text style={localStyles.viewLookText}>View Look</Text>
-                                        </TouchableOpacity>
+                            {recentOutfits.length > 0 ? (() => {
+                                const outfitImages = Object.values(recentOutfits[0].rawItemDetails || {}).map((detail: any) => detail.imageURL).filter(Boolean);
+                                if (outfitImages.length === 0 && recentOutfits[0].image) {
+                                    outfitImages.push(recentOutfits[0].image);
+                                }
+                                return (
+                                    <View style={localStyles.singleOutfitCard}>
+                                        <OutfitCollage images={outfitImages} style={localStyles.singleOutfitImg} />
+                                        <View style={localStyles.singleOutfitInfo}>
+                                            <Text style={localStyles.singleOutfitName}>{recentOutfits[0].name}</Text>
+                                            <TouchableOpacity
+                                                style={localStyles.viewLookBtn}
+                                                onPress={() => {
+                                                    const item = recentOutfits[0];
+                                                    const itemsArray = Object.entries(item.rawItemDetails || {}).map(([id, detail]: [string, any]) => ({
+                                                        id, title: detail.title, category: detail.category, color: detail.color, imageURL: detail.imageURL,
+                                                    }));
+                                                    navigation.navigate('preview', { items: itemsArray, isSaved: true, outfitId: item.id });
+                                                }}
+                                            >
+                                                <Text style={localStyles.viewLookText}>View Look</Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                </View>
-                            ) : <Text style={localStyles.sectionEmptyText}>No recent outfits yet.</Text>}
+                                );
+                            })() : <Text style={localStyles.sectionEmptyText}>No recent outfits yet.</Text>}
                         </View>
                     </View>
 
@@ -524,6 +628,22 @@ const localStyles = StyleSheet.create({
         color: '#fff',
         fontSize: 12,
         fontWeight: '700',
+    },
+    generatingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        height: '100%',
+        gap: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    generatingText: {
+        fontSize: 14,
+        fontFamily: 'InterMedium',
+        color: '#64748B',
     },
 });
 
