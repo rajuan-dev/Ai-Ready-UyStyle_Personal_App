@@ -25,7 +25,7 @@
     "ios": {
       "icon": "./assets/app-icon.png",
       "bundleIdentifier": "com.pbell.ustyle.dev",
-      "buildNumber": "22",
+      "buildNumber": "23",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "This app requires camera access to take photos of your clothing items and profile pictures.",
