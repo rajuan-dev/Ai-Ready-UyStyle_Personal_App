@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Users ─────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Style preferences sub-collection
+      match /preferences/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // ─── Closet Items ──────────────────────────────────────────────
+    match /closetItems/{itemId} {
+      allow read, write: if request.auth != null
+                         && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null
+                          && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Categories ────────────────────────────────────────────────
+    match /categories/{catId} {
+      allow read, write: if request.auth != null
+                         && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null
+                          && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Outfits ───────────────────────────────────────────────────
+    match /outfits/{outfitId} {
+      allow read, write: if request.auth != null
+                         && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null
+                          && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Outfit Slots (individual item slots inside an outfit) ────
+    match /outfitSlots/{slotId} {
+      allow read, write: if request.auth != null
+                         && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null
+                          && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Outfit Fires (🔥 reactions) ──────────────────────────────
+    match /outfitFires/{fireId} {
+      allow read, write: if request.auth != null
+                         && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null
+                          && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Likes / Favorites ─────────────────────────────────────────
+    match /likes/{likeId} {
+      allow read, write: if request.auth != null
+                         && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null
+                          && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Notifications ─────────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read, write: if request.auth != null
+                         && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+                                  && resource.data.userId == request.auth.uid;
+    }
+  }
+}

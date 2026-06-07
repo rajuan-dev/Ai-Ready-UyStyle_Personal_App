@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -7,63 +7,111 @@ import {
     StyleSheet,
     StatusBar,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Sparkles, Package, CheckCircle2, Info, Bell } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { getApp } from '../firebase/app';
+import { getAuth } from '../firebase/auth';
+import {
+    getFirestore,
+    collection,
+    query,
+    where,
+    orderBy,
+    onSnapshot,
+    doc,
+    updateDoc,
+    writeBatch,
+    getDocs,
+} from '../firebase/firestore';
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+// ─── Data Types ───────────────────────────────────────────────────────────────
 
 type Notification = {
     id: string;
     title: string;
     desc: string;
-    time: string;
+    createdAt: any;
     type: string;
     isRead: boolean;
 };
 
-const initialNotifications: Notification[] = [
-    {
-        id: '1',
-        title: 'New Style Recommendation',
-        desc: 'Based on your recent "Blue Knit Sweater" pick, we found 3 matching bottoms!',
-        time: '2m ago',
-        type: 'recommendation',
-        isRead: false,
-    },
-    {
-        id: '2',
-        title: 'Closet Updated',
-        desc: 'Successfully added "Leather Belt" to your Accessory collection.',
-        time: '1h ago',
-        type: 'system',
-        isRead: false,
-    },
-    {
-        id: '3',
-        title: 'Outfit of the Day',
-        desc: "Don't forget to log your look for today to track your style progress.",
-        time: '5h ago',
-        type: 'reminder',
-        isRead: true,
-    },
-    {
-        id: '4',
-        title: 'System Update',
-        desc: 'Version 2.0 is now live. Check out the new "Combine" feature!',
-        time: 'Yesterday',
-        type: 'info',
-        isRead: true,
-    },
-];
+// ─── Timestamp Formatting Helper ──────────────────────────────────────────────
+const formatTime = (createdAt: any) => {
+    if (!createdAt) return 'Just now';
+    
+    let date: Date;
+    if (typeof createdAt.toDate === 'function') {
+        date = createdAt.toDate();
+    } else if (createdAt.seconds) {
+        date = new Date(createdAt.seconds * 1000);
+    } else {
+        date = new Date(createdAt);
+    }
+
+    if (isNaN(date.getTime())) return 'Just now';
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const NotificationScreen = () => {
     const navigation = useNavigation();
-    const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+    const app = getApp();
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const user = auth.currentUser;
+
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [loading, setLoading] = useState(true);
     const [clearing, setClearing] = useState(false);
+
+    // ── Sync notifications from Firestore ─────────────────────────────────────
+    useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        const q = query(
+            collection(db, 'notifications'),
+            where('userId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+        );
+
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const list = snapshot.docs.map((d) => ({
+                    id: d.id,
+                    ...(d.data() as Omit<Notification, 'id'>),
+                }));
+                setNotifications(list);
+                setLoading(false);
+            },
+            (error) => {
+                console.warn('[Notifications] Fetch error:', error);
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user, db]);
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -75,25 +123,46 @@ const NotificationScreen = () => {
     };
 
     const handleClearAll = async () => {
-        if (clearing || notifications.length === 0) return;
-        setClearing(true);
-        try {
-            // Small delay to show loading state and prevent accidental double-taps
-            await new Promise(resolve => setTimeout(resolve, 300));
-            setNotifications([]);
-        } catch (error) {
-            console.warn('Failed to clear notifications:', error);
-        } finally {
-            setClearing(false);
-        }
+        if (clearing || notifications.length === 0 || !user) return;
+
+        Alert.alert(
+            'Clear All Notifications',
+            'Are you sure you want to delete all notifications? This action cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete All',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setClearing(true);
+                        try {
+                            const batch = writeBatch(db);
+                            const q = query(collection(db, 'notifications'), where('userId', '==', user.uid));
+                            const snap = await getDocs(q);
+                            snap.docs.forEach((docSnap) => {
+                                batch.delete(docSnap.ref);
+                            });
+                            await batch.commit();
+                        } catch (error) {
+                            console.warn('Failed to clear notifications:', error);
+                            Alert.alert('Error', 'Failed to clear notifications. Please try again.');
+                        } finally {
+                            setClearing(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
-    const handleMarkAsRead = (id: string) => {
-        setNotifications(prev =>
-            prev.map(notif =>
-                notif.id === id ? { ...notif, isRead: true } : notif
-            )
-        );
+    const handleMarkAsRead = async (id: string) => {
+        if (!user) return;
+        try {
+            const notifRef = doc(db, 'notifications', id);
+            await updateDoc(notifRef, { isRead: true });
+        } catch (error) {
+            console.warn('Failed to mark notification as read:', error);
+        }
     };
 
     return (
@@ -128,42 +197,49 @@ const NotificationScreen = () => {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
-                {notifications.length > 0 ? (
-                    notifications.map((item) => (
-                        <TouchableOpacity
-                            key={item.id}
-                            style={[styles.notifCard, !item.isRead && styles.unreadCard]}
-                            activeOpacity={0.7}
-                            onPress={() => handleMarkAsRead(item.id)}
-                        >
-                            <View style={[styles.iconContainer, { backgroundColor: item.isRead ? '#F1F5F9' : '#fff' }]}>
-                                {getIcon(item.type)}
-                            </View>
-
-                            <View style={styles.notifTextContent}>
-                                <View style={styles.notifHeaderRow}>
-                                    <Text style={styles.notifTitle}>{item.title}</Text>
-                                    {!item.isRead && <View style={styles.unreadDot} />}
+            {loading ? (
+                <View style={styles.centerBox}>
+                    <ActivityIndicator size="large" color="#2869BD" />
+                    <Text style={styles.centerTxt}>Loading notifications…</Text>
+                </View>
+            ) : (
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                >
+                    {notifications.length > 0 ? (
+                        notifications.map((item) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                style={[styles.notifCard, !item.isRead && styles.unreadCard]}
+                                activeOpacity={0.75}
+                                onPress={() => handleMarkAsRead(item.id)}
+                            >
+                                <View style={[styles.iconContainer, { backgroundColor: item.isRead ? '#F1F5F9' : '#fff' }]}>
+                                    {getIcon(item.type)}
                                 </View>
-                                <Text style={styles.notifDesc} numberOfLines={2}>
-                                    {item.desc}
-                                </Text>
-                                <Text style={styles.notifTime}>{item.time}</Text>
-                            </View>
-                        </TouchableOpacity>
-                    ))
-                ) : (
-                    <View style={styles.emptyState}>
-                        <Bell size={64} color="#E2E8F0" />
-                        <Text style={styles.emptyTitle}>All caught up!</Text>
-                        <Text style={styles.emptySub}>No new notifications for now.</Text>
-                    </View>
-                )}
-            </ScrollView>
+
+                                <View style={styles.notifTextContent}>
+                                    <View style={styles.notifHeaderRow}>
+                                        <Text style={styles.notifTitle}>{item.title}</Text>
+                                        {!item.isRead && <View style={styles.unreadDot} />}
+                                    </View>
+                                    <Text style={styles.notifDesc} numberOfLines={2}>
+                                        {item.desc}
+                                    </Text>
+                                    <Text style={styles.notifTime}>{formatTime(item.createdAt)}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Bell size={64} color="#E2E8F0" />
+                            <Text style={styles.emptyTitle}>All caught up!</Text>
+                            <Text style={styles.emptySub}>No new notifications for now.</Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
         </SafeAreaView>
     );
 };
@@ -284,6 +360,17 @@ const styles = StyleSheet.create({
         color: '#64748B',
         textAlign: 'center',
         marginTop: 8,
+    },
+    centerBox: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+    },
+    centerTxt: {
+        fontSize: 13,
+        fontFamily: 'InterRegular',
+        color: '#94A3B8',
     },
 });
 

@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Check } from 'lucide-react-native';
 import { useAppAlert } from '../../context/AlertContext';
+import { addNotification } from '../../utils/notifications';
 
 // ─── Firebase Modular v22 imports ─────────────────────────────────────────────
 import { getApp } from '../../firebase/app';
@@ -190,6 +191,16 @@ const StylePreferenceScreen = ({ navigation }: any) => {
                 },
                 { merge: true },
             );
+
+            const userObj = getAuth(getApp()).currentUser;
+            if (userObj) {
+                await addNotification(
+                    userObj.uid,
+                    'Preferences Updated',
+                    'Your style preferences have been successfully updated. We will now recommend outfits that match your preferences.',
+                    'recommendation'
+                );
+            }
 
             invalidateProfileCache(); // Force refresh on profile screen
 

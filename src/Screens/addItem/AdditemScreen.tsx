@@ -36,6 +36,7 @@ import {
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
 import { useAppAlert } from '../../context/AlertContext';
+import { addNotification } from '../../utils/notifications';
 import {
     getFirestore,
     collection,
@@ -414,13 +415,19 @@ const AdditemScreen = () => {
                 finalImageURL = await uploadImage(user.uid);
             }
 
-            if (initialItem) {
+             if (initialItem) {
                 await updateDoc(doc(db, 'closetItems', initialItem.id), {
                     title:  title.trim(),
                     category,
                     color:  color.trim(),
                     imageURL: finalImageURL,
                 });
+                await addNotification(
+                    user.uid,
+                    'Closet Updated',
+                    `Successfully updated "${title.trim()}" details in your ${category} collection.`,
+                    'system'
+                );
                 showSuccess('Updated!', 'Item details have been updated.', () => {
                     handleBack();
                 });
@@ -433,6 +440,12 @@ const AdditemScreen = () => {
                     imageURL: finalImageURL,
                     createdAt: serverTimestamp(),
                 });
+                await addNotification(
+                    user.uid,
+                    'Closet Updated',
+                    `Successfully added "${title.trim()}" to your ${category} collection.`,
+                    'system'
+                );
                 showSuccess('Success!', 'Item added to your closet.', () => {
                     setImageUri(null); setImageFile(null);
                     setTitle(''); setCategory(''); setColor('');
@@ -478,6 +491,12 @@ const AdditemScreen = () => {
 
                     // 3. Delete Firestore closetItem document
                     await deleteDoc(doc(db, 'closetItems', initialItem.id));
+                    await addNotification(
+                        user.uid,
+                        'Closet Updated',
+                        `Successfully removed "${initialItem.title}" from your closet.`,
+                        'system'
+                    );
 
                     showSuccess('Deleted!', 'Clothing item has been removed from your closet.', () => {
                         handleBack();

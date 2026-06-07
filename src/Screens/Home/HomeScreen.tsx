@@ -22,6 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import { OutfitCollage } from '../../components/OutfitCollage';
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
+import { addNotification } from '../../utils/notifications';
 import {
     getFirestore,
     doc,
@@ -32,6 +33,7 @@ import {
     getDocs,
     orderBy,
     limit,
+    getCountFromServer,
 } from '../../firebase/firestore';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 
@@ -73,6 +75,7 @@ const HomeScreen = () => {
     const [fullName, setFullName] = useState<string>('');
     const [preferences, setPreferences] = useState<any>(null);
     const [recommendationSeed, setRecommendationSeed] = useState<number>(getDailySeed());
+    const [hasUnread, setHasUnread] = useState<boolean>(false);
 
     // ── 1. Data Fetching ────────────────────────────────
     useEffect(() => {
@@ -143,13 +146,48 @@ const HomeScreen = () => {
             );
         });
 
+        // Unread Notifications Sync
+        const notifsQuery = query(
+            collection(db, 'notifications'),
+            where('userId', '==', user.uid),
+            where('isRead', '==', false),
+            limit(1)
+        );
+        const unsubUnread = onSnapshot(notifsQuery, snapshot => {
+            setHasUnread(!snapshot.empty);
+        });
+
         return () => {
             unsubProfile();
             unsubPrefs();
             unsubItems();
             unsubOutfits();
+            unsubUnread();
         };
     }, [db, user]);
+
+    // ── Welcome Notification Seeding ────────────────────────────────
+    useEffect(() => {
+        if (!user) return;
+        const checkAndSeedWelcome = async () => {
+            try {
+                const notifsRef = collection(db, 'notifications');
+                const q = query(notifsRef, where('userId', '==', user.uid));
+                const countSnap = await getCountFromServer(q);
+                if (countSnap.data().count === 0) {
+                    await addNotification(
+                        user.uid,
+                        'Welcome to USTYLE! ✦',
+                        'Ready to elevate your wardrobe? Add items to your Closet and start building looks in the Combine tab.',
+                        'info'
+                    );
+                }
+            } catch (err) {
+                console.warn('[Welcome Notification] Check/Seed error:', err);
+            }
+        };
+        checkAndSeedWelcome();
+    }, [user?.uid, db]);
 
     // ── Personalized Greeting ─────────────────────────────
     const greeting = useMemo(() => {
@@ -290,7 +328,16 @@ const HomeScreen = () => {
         
         console.log('[Home] Build Another clicked. Seed changed from', recommendationSeed, 'to', newSeed);
         setRecommendationSeed(newSeed);
-    }, [recommendationSeed, recommendedOutfit, getOutfitForSeed]);
+
+        if (user) {
+            addNotification(
+                user.uid,
+                'New Outfit Picked',
+                'We generated a fresh daily outfit pick for you. Tap "Wear This" to preview!',
+                'recommendation'
+            );
+        }
+    }, [recommendationSeed, recommendedOutfit, getOutfitForSeed, user]);
 
     // ── 2. Search Logic ─────────────────────────────────
     const [searchVisible, setSearchVisible] = useState(false);
@@ -383,7 +430,7 @@ const HomeScreen = () => {
                     <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('notification')} activeOpacity={0.7}>
                         <View style={styles.notifWrapper}>
                             <Bell size={20} color="#1E293B" />
-                            <View style={styles.notifDot} />
+                            {hasUnread && <View style={styles.notifDot} />}
                         </View>
                     </TouchableOpacity>
                 </View>

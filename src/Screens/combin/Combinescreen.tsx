@@ -35,6 +35,7 @@ import {
 } from 'lucide-react-native';
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
+import { addNotification } from '../../utils/notifications';
 import {
     getFirestore,
     collection,
@@ -439,6 +440,12 @@ const CombineScreen = ({ route, navigation }: any) => {
                     itemDetails,  // { [itemId]: ItemDetail }
                     updatedAt:   serverTimestamp(),
                 });
+                await addNotification(
+                    user.uid,
+                    'Outfit Updated',
+                    `Successfully updated your saved outfit look.`,
+                    'system'
+                );
                 navigation.setParams({ editItems: undefined, outfitId: undefined });
                 navigation.navigate('saveSuccess', { isOutfit: true, isEdit: true });
             } else {
@@ -455,6 +462,12 @@ const CombineScreen = ({ route, navigation }: any) => {
                     itemDetails,  // { [itemId]: ItemDetail }
                     createdAt:   serverTimestamp(),
                 });
+                await addNotification(
+                    user.uid,
+                    'Outfit Created',
+                    `Successfully saved "${outfitName}" to your outfit collection.`,
+                    'system'
+                );
                 navigation.navigate('saveSuccess', { isOutfit: true, isEdit: false });
             }
 
