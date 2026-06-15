@@ -765,7 +765,7 @@ const PreviewScreen = ({ route, navigation }: any) => {
                 <View style={st.bottomBar}>
                     <TouchableOpacity
                         style={st.backOutfitBtn}
-                        onPress={() => navigation.navigate('combine')}
+                        onPress={() => navigation.navigate('combine', { editItems: items })}
                         activeOpacity={0.8}
                     >
                         <Text style={st.backOutfitTxt}>Edit Outfit</Text>

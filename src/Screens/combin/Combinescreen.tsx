@@ -45,6 +45,7 @@ import {
     addDoc,
     deleteDoc,
     doc,
+    getDoc,
     serverTimestamp,
     writeBatch,
     getDocs,
@@ -132,10 +133,10 @@ const CombineScreen = ({ route, navigation }: any) => {
 
     const loadedEditRef = useRef(false);
 
-    // Reset edit loaded state when outfitId changes
+    // Reset edit loaded state when outfitId or editItems change
     useEffect(() => {
         loadedEditRef.current = false;
-    }, [outfitId]);
+    }, [outfitId, editItems]);
 
     // ── State ────────────────────────────────────────────────────────────────
 
@@ -143,6 +144,10 @@ const CombineScreen = ({ route, navigation }: any) => {
     const [customSlots,   setCustomSlots]   = useState<OutfitSlot[]>([]);
     const [loadingItems,  setLoadingItems]  = useState(true);
     const [loadingSlots,  setLoadingSlots]  = useState(true);
+    const [loadingOutfit, setLoadingOutfit] = useState(false);
+    const [outfitError,   setOutfitError]   = useState<string | null>(null);
+    const [retryTrigger,  setRetryTrigger]  = useState(0);
+    const [fetchedItemsState, setFetchedItemsState] = useState<ClosetItem[] | null>(null);
     const [saving,        setSaving]        = useState(false);
     const [activeTab,     setActiveTab]     = useState('All');
     const [showModal,     setShowModal]     = useState(false);
@@ -180,7 +185,7 @@ const CombineScreen = ({ route, navigation }: any) => {
         [slotMap],
     );
 
-    const loading = loadingItems || loadingSlots;
+    const loading = loadingItems || loadingSlots || loadingOutfit;
 
     // ── Firebase: closet items ───────────────────────────────────────────────
 
@@ -208,23 +213,113 @@ const CombineScreen = ({ route, navigation }: any) => {
                 setLoadingItems(false);
             },
         );
-    }, [user?.uid]);
+    }, [db, user]);
 
-    // Pre-populate slotMap when editing a saved outfit
+    // Fetch outfit from Firestore by outfitId if only outfitId is passed
     useEffect(() => {
-        if (editItems && editItems.length > 0 && closetItems.length > 0 && !loadedEditRef.current) {
-            const nextMap = { ...slotMap };
-            editItems.forEach((item: any) => {
-                const matched = closetItems.find(c => c.id === item.id);
-                if (matched) {
-                    const slotId = resolveSlot(matched.category, allSlots);
-                    nextMap[slotId] = matched;
-                }
-            });
-            setSlotMap(nextMap);
-            loadedEditRef.current = true;
+        if (!outfitId || !user) {
+            setFetchedItemsState(null);
+            setOutfitError(null);
+            return;
         }
-    }, [editItems, closetItems, allSlots, slotMap]);
+
+        let isMounted = true;
+        const fetchOutfit = async () => {
+            setLoadingOutfit(true);
+            setOutfitError(null);
+            try {
+                const outfitRef = doc(db, 'outfits', outfitId);
+                const outfitSnap = await getDoc(outfitRef);
+                
+                if (!isMounted) return;
+
+                if (!outfitSnap.exists()) {
+                    setOutfitError('Outfit not found.');
+                    return;
+                }
+
+                const data = outfitSnap.data();
+                if (data.userId !== user.uid) {
+                    setOutfitError('You do not have permission to edit this outfit.');
+                    return;
+                }
+
+                const itemsMap: Record<string, string> = data.items || {};
+                const detailsMap: Record<string, any> = data.itemDetails || {};
+
+                const itemsList: ClosetItem[] = Object.entries(itemsMap).map(([slotId, itemId]) => {
+                    const detail = detailsMap[itemId] || {};
+                    return {
+                        id: itemId,
+                        title: detail.title || 'Item',
+                        category: detail.category || slotId,
+                        color: detail.color || '',
+                        imageURL: detail.imageURL || '',
+                        slotId: slotId,
+                    } as any;
+                });
+
+                setFetchedItemsState(itemsList);
+            } catch (err) {
+                console.error('[CombineScreen] Error fetching outfit:', err);
+                if (isMounted) {
+                    setOutfitError('Failed to load the outfit. Please try again.');
+                }
+            } finally {
+                if (isMounted) {
+                    setLoadingOutfit(false);
+                }
+            }
+        };
+
+        fetchOutfit();
+        return () => {
+            isMounted = false;
+        };
+    }, [outfitId, user, db, retryTrigger]);
+
+    const itemsToLoad = useMemo(() => {
+        if (editItems && editItems.length > 0) {
+            return editItems;
+        }
+        return fetchedItemsState || [];
+    }, [editItems, fetchedItemsState]);
+
+    // Pre-populate slotMap when editing a saved/generated outfit
+    useEffect(() => {
+        if (!loadedEditRef.current) {
+            if (itemsToLoad.length > 0) {
+                const populatedSlotIds = new Set<string>();
+
+                setSlotMap(prev => {
+                    const nextMap = { ...prev };
+                    itemsToLoad.forEach((item: any) => {
+                        const matched = closetItems.find(c => c.id === item.id);
+                        const finalItem = matched || item;
+                        const slotId = item.slotId && allSlots.some(s => s.id === item.slotId)
+                            ? item.slotId
+                            : resolveSlot(finalItem.category, allSlots);
+                        nextMap[slotId] = finalItem;
+                        populatedSlotIds.add(slotId);
+                    });
+
+                    // Clear other slots so we don't have leftover items from previous screens
+                    allSlots.forEach(s => {
+                        if (!populatedSlotIds.has(s.id)) {
+                            nextMap[s.id] = null;
+                        }
+                    });
+                    return nextMap;
+                });
+
+                loadedEditRef.current = true;
+            } else if (editItems.length === 0 && !outfitId) {
+                // Reset slots when starting a new outfit (no edit params)
+                setSlotMap(() => Object.fromEntries(allSlots.map(s => [s.id, null])));
+                loadedEditRef.current = true;
+            }
+        }
+    }, [itemsToLoad, editItems, outfitId, closetItems, allSlots]);
 
     // ── Firebase: custom slots ───────────────────────────────────────────────
 
@@ -264,7 +359,7 @@ const CombineScreen = ({ route, navigation }: any) => {
                 setLoadingSlots(false);
             },
         );
-    }, [user?.uid]);
+    }, [db, user]);
 
     // ── Item selection ───────────────────────────────────────────────────────
 
@@ -663,10 +758,27 @@ const CombineScreen = ({ route, navigation }: any) => {
                 )}
 
                 {/* Items grid */}
-                {loading ? (
+                {outfitError ? (
+                    <View style={s.centerBox}>
+                        <Text style={s.emptyTitle}>Error Loading Outfit</Text>
+                        <Text style={s.emptySub}>{outfitError}</Text>
+                        <TouchableOpacity
+                            style={[s.tab, { marginTop: 12, backgroundColor: '#EF4444', borderColor: '#EF4444' }]}
+                            onPress={() => {
+                                loadedEditRef.current = false;
+                                setRetryTrigger(prev => prev + 1);
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={[s.tabTxt, { color: '#fff' }]}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : loading ? (
                     <View style={s.centerBox}>
                         <ActivityIndicator size="large" color="#2869BD" />
-                        <Text style={s.centerTxt}>Loading closet…</Text>
+                        <Text style={s.centerTxt}>
+                            {loadingOutfit ? 'Loading outfit…' : 'Loading closet…'}
+                        </Text>
                     </View>
                 ) : filteredItems.length === 0 ? (
                     <View style={s.centerBox}>
