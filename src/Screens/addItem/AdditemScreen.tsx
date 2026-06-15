@@ -426,13 +426,15 @@ const AdditemScreen = () => {
                     user.uid,
                     'Closet Updated',
                     `Successfully updated "${title.trim()}" details in your ${category} collection.`,
-                    'system'
+                    'system',
+                    undefined,
+                    { itemId: initialItem.id }
                 );
                 showSuccess('Updated!', 'Item details have been updated.', () => {
                     handleBack();
                 });
             } else {
-                await addDoc(collection(db, 'closetItems'), {
+                const docRef = await addDoc(collection(db, 'closetItems'), {
                     userId: user.uid,
                     title:  title.trim(),
                     category,
@@ -444,7 +446,9 @@ const AdditemScreen = () => {
                     user.uid,
                     'Closet Updated',
                     `Successfully added "${title.trim()}" to your ${category} collection.`,
-                    'system'
+                    'system',
+                    undefined,
+                    { itemId: docRef.id }
                 );
                 showSuccess('Success!', 'Item added to your closet.', () => {
                     setImageUri(null); setImageFile(null);
@@ -495,7 +499,8 @@ const AdditemScreen = () => {
                         user.uid,
                         'Closet Updated',
                         `Successfully removed "${initialItem.title}" from your closet.`,
-                        'system'
+                        'system',
+                        'Closet'
                     );
 
                     showSuccess('Deleted!', 'Clothing item has been removed from your closet.', () => {

@@ -7,10 +7,13 @@ import {
     StyleSheet,
     StatusBar,
     ActivityIndicator,
+    Image,
+    Pressable,
+    Modal,
 } from 'react-native';
 import { useAppAlert } from '../context/AlertContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Sparkles, Package, CheckCircle2, Info, Bell } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Package, CheckCircle2, Info, Bell, X, Pencil, Heart } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getApp } from '../firebase/app';
 import { getAuth } from '../firebase/auth';
@@ -26,6 +29,7 @@ import {
     writeBatch,
     getDocs,
     getDoc,
+    limit,
 } from '../firebase/firestore';
 
 // ─── Data Types ───────────────────────────────────────────────────────────────
@@ -38,6 +42,9 @@ type Notification = {
     type: string;
     isRead: boolean;
     screen?: string | null;  // optional navigation target
+    route?: string | null;
+    outfitId?: string | null;
+    itemId?: string | null;
     metadata?: any;
 };
 
@@ -155,34 +162,228 @@ const NotificationScreen = () => {
 
     const handleNotifPress = async (item: Notification) => {
         if (!user || navigatingId) return;
-        // 1. Mark as read
+
+        // 1. Mark as read in Firestore
         try {
             const notifRef = doc(db, 'notifications', item.id);
             await updateDoc(notifRef, { isRead: true });
         } catch (error) {
             console.warn('Failed to mark notification as read:', error);
         }
-        // 2. Navigate to the linked screen (if any)
-        if (item.screen) {
-            if (item.screen === 'preview' && item.metadata?.itemIds && Array.isArray(item.metadata.itemIds)) {
-                setNavigatingId(item.id);
-                try {
-                    const fetchPromises = item.metadata.itemIds.map(async (itemId: string) => {
+
+        const outfitId = item.outfitId || item.metadata?.outfitId;
+        const itemId = item.itemId || item.metadata?.itemId;
+
+        setNavigatingId(item.id);
+
+        try {
+            // Case 1: Notification has an outfitId -> Navigate to outfit preview/detail
+            if (outfitId) {
+                const outfitRef = doc(db, 'outfits', outfitId);
+                const outfitSnap = await getDoc(outfitRef);
+                if (outfitSnap.exists() && outfitSnap.data().userId === user.uid) {
+                    const outfitData = outfitSnap.data();
+                    const itemDetails = outfitData.itemDetails || {};
+                    const itemsArray = Object.entries(itemDetails).map(([id, detail]: [string, any]) => ({
+                        id,
+                        title: detail.title || 'Untitled item',
+                        category: detail.category || 'Uncategorized',
+                        color: detail.color || '',
+                        imageURL: detail.imageURL || '',
+                    }));
+                    
+                    if (itemsArray.length === 0) {
+                        showError('Outfit Empty', 'This outfit has no items.');
+                        (navigation as any).navigate('bottombar', { screen: 'Home' });
+                    } else {
+                        (navigation as any).navigate('preview', {
+                            items: itemsArray,
+                            isSaved: true,
+                            outfitId: outfitSnap.id,
+                        });
+                    }
+                } else {
+                    showError('Outfit Unavailable', 'This outfit is no longer available.');
+                    (navigation as any).navigate('bottombar', { screen: 'Home' });
+                }
+                return;
+            }
+
+            // Case 2: Notification has an itemId -> Navigate to closet item details page
+            if (itemId) {
+                const itemRef = doc(db, 'closetItems', itemId);
+                const itemSnap = await getDoc(itemRef);
+                if (itemSnap.exists() && itemSnap.data().userId === user.uid) {
+                    const itemData = itemSnap.data();
+                    const initialItem = {
+                        id: itemSnap.id,
+                        title: itemData.title || '',
+                        category: itemData.category || '',
+                        color: itemData.color || '',
+                        imageURL: itemData.imageURL || '',
+                        userId: itemData.userId || '',
+                        createdAt: itemData.createdAt || null,
+                        likeCount: itemData.likeCount ?? 0,
+                    };
+                    (navigation as any).navigate('AddItemEditor', { initialItem });
+                } else {
+                    showError('Item Unavailable', 'This item is no longer in your closet.');
+                    (navigation as any).navigate('bottombar', { screen: 'Home' });
+                }
+                return;
+            }
+
+            // Case 3: Parse item title / outfit name from description (backward compatibility for old notifications)
+            const match = item.desc.match(/"([^"]+)"/);
+            if (match && match[1]) {
+                const parsedName = match[1].trim();
+                const isOutfit = item.desc.toLowerCase().includes('outfit') || item.title.toLowerCase().includes('outfit');
+
+                if (isOutfit) {
+                    // Try exact match first
+                    const qOutfits = query(
+                        collection(db, 'outfits'),
+                        where('userId', '==', user.uid),
+                        where('name', '==', parsedName),
+                        limit(1)
+                    );
+                    const querySnap = await getDocs(qOutfits);
+                    if (!querySnap.empty) {
+                        const matchedDoc = querySnap.docs[0];
+                        const outfitData = matchedDoc.data();
+                        const itemDetails = outfitData.itemDetails || {};
+                        const itemsArray = Object.entries(itemDetails).map(([id, detail]: [string, any]) => ({
+                            id,
+                            title: detail.title || 'Untitled item',
+                            category: detail.category || 'Uncategorized',
+                            color: detail.color || '',
+                            imageURL: detail.imageURL || '',
+                        }));
+                        
+                        if (itemsArray.length > 0) {
+                            (navigation as any).navigate('preview', {
+                                items: itemsArray,
+                                isSaved: true,
+                                outfitId: matchedDoc.id,
+                            });
+                            return;
+                        }
+                    }
+
+                    // Fallback to case-insensitive match on all user's outfits
+                    const qAllOutfits = query(
+                        collection(db, 'outfits'),
+                        where('userId', '==', user.uid)
+                    );
+                    const allSnap = await getDocs(qAllOutfits);
+                    const matchedDoc = allSnap.docs.find(d => {
+                        const name = (d.data().name || '').toLowerCase().trim();
+                        return name === parsedName.toLowerCase();
+                    });
+                    if (matchedDoc) {
+                        const outfitData = matchedDoc.data();
+                        const itemDetails = outfitData.itemDetails || {};
+                        const itemsArray = Object.entries(itemDetails).map(([id, detail]: [string, any]) => ({
+                            id,
+                            title: detail.title || 'Untitled item',
+                            category: detail.category || 'Uncategorized',
+                            color: detail.color || '',
+                            imageURL: detail.imageURL || '',
+                        }));
+                        if (itemsArray.length > 0) {
+                            (navigation as any).navigate('preview', {
+                                items: itemsArray,
+                                isSaved: true,
+                                outfitId: matchedDoc.id,
+                            });
+                            return;
+                        }
+                    }
+
+                    // Fallback: if we matched "outfit" but couldn't find/preview it, take to Home tab
+                    (navigation as any).navigate('bottombar', { screen: 'Home' });
+                    return;
+                } else {
+                    // Try exact match first
+                    const qItems = query(
+                        collection(db, 'closetItems'),
+                        where('userId', '==', user.uid),
+                        where('title', '==', parsedName),
+                        limit(1)
+                    );
+                    const querySnap = await getDocs(qItems);
+                    if (!querySnap.empty) {
+                        const matchedDoc = querySnap.docs[0];
+                        const itemData = matchedDoc.data();
+                        const initialItem = {
+                            id: matchedDoc.id,
+                            title: itemData.title || '',
+                            category: itemData.category || '',
+                            color: itemData.color || '',
+                            imageURL: itemData.imageURL || '',
+                            userId: itemData.userId || '',
+                            createdAt: itemData.createdAt || null,
+                            likeCount: itemData.likeCount ?? 0,
+                        };
+                        (navigation as any).navigate('AddItemEditor', { initialItem });
+                        return;
+                    }
+
+                    // Fallback to case-insensitive match on all user's closet items
+                    const qAllItems = query(
+                        collection(db, 'closetItems'),
+                        where('userId', '==', user.uid)
+                    );
+                    const allSnap = await getDocs(qAllItems);
+                    const matchedDoc = allSnap.docs.find(d => {
+                        const title = (d.data().title || '').toLowerCase().trim();
+                        return title === parsedName.toLowerCase();
+                    });
+                    if (matchedDoc) {
+                        const itemData = matchedDoc.data();
+                        const initialItem = {
+                            id: matchedDoc.id,
+                            title: itemData.title || '',
+                            category: itemData.category || '',
+                            color: itemData.color || '',
+                            imageURL: itemData.imageURL || '',
+                            userId: itemData.userId || '',
+                            createdAt: itemData.createdAt || null,
+                            likeCount: itemData.likeCount ?? 0,
+                        };
+                        (navigation as any).navigate('AddItemEditor', { initialItem });
+                        return;
+                    }
+
+                    // Fallback: if we couldn't find the item by name, take to Home tab
+                    (navigation as any).navigate('bottombar', { screen: 'Home' });
+                    return;
+                }
+            }
+
+            // Case 4: Target screen or route in notification metadata/properties
+            let targetScreen = item.screen || item.route || item.metadata?.screen || item.metadata?.route;
+            if (item.title.toLowerCase().includes('welcome')) {
+                targetScreen = 'Home';
+            }
+            if (targetScreen) {
+                if (targetScreen === 'preview' && item.metadata?.itemIds && Array.isArray(item.metadata.itemIds)) {
+                    const fetchPromises = item.metadata.itemIds.map(async (fId: string) => {
                         try {
-                            const itemRef = doc(db, 'closetItems', itemId);
-                            const itemSnap = await getDoc(itemRef);
-                            if (itemSnap.exists()) {
-                                const data = itemSnap.data();
+                            const refDoc = doc(db, 'closetItems', fId);
+                            const snapDoc = await getDoc(refDoc);
+                            if (snapDoc.exists() && snapDoc.data().userId === user.uid) {
+                                const d = snapDoc.data();
                                 return {
-                                    id: itemSnap.id,
-                                    title: data.title || 'Untitled item',
-                                    category: data.category || 'Uncategorized',
-                                    color: data.color || '',
-                                    imageURL: data.imageURL || '',
+                                    id: snapDoc.id,
+                                    title: d.title || 'Untitled item',
+                                    category: d.category || 'Uncategorized',
+                                    color: d.color || '',
+                                    imageURL: d.imageURL || '',
                                 };
                             }
                         } catch (err) {
-                            console.warn(`[Notifications] Failed to fetch item ${itemId}:`, err);
+                            console.warn(`[Notifications] Failed to fetch item ${fId}:`, err);
                         }
                         return null;
                     });
@@ -191,18 +392,54 @@ const NotificationScreen = () => {
                     
                     if (fetchedItems.length === 0) {
                         showError('Outfit Unavailable', 'The items in this outfit are no longer in your closet.');
+                        (navigation as any).navigate('bottombar', { screen: 'Home' });
                     } else {
                         (navigation as any).navigate('preview', { items: fetchedItems, isSaved: false });
                     }
-                } catch (error) {
-                    console.warn('[Notifications] Error preparing preview:', error);
-                    showError('Error', 'Failed to load outfit preview. Please try again.');
-                } finally {
-                    setNavigatingId(null);
+                } else {
+                    // Try to navigate directly to the screen (supporting nested tabs and case-insensitive resolution too)
+                    try {
+                        const tabScreens = ['Home', 'Closet', 'Add', 'Outfits', 'Profile'];
+                        const stackScreens = [
+                            'onboarding', 'signup', 'signin', 'forgotPassword', 'verifyEmail',
+                            'profileedit', 'ChangePassword', 'AIChatScreen', 'preference',
+                            'combine', 'preview', 'saveSuccess', 'notification',
+                            'accountsettings', 'privacypolicy', 'help',
+                            'FavoriteLooksScreen', 'Recentitems', 'outfits', 'AddItemEditor'
+                        ];
+
+                        const targetLower = targetScreen.toLowerCase().trim();
+
+                        // Try to find in tabScreens first
+                        const matchedTab = tabScreens.find(s => s.toLowerCase() === targetLower);
+                        if (matchedTab) {
+                            (navigation as any).navigate('bottombar', { screen: matchedTab });
+                        } else {
+                            // Try to find in stackScreens
+                            const matchedStack = stackScreens.find(s => s.toLowerCase() === targetLower);
+                            if (matchedStack) {
+                                (navigation as any).navigate(matchedStack);
+                            } else {
+                                // If not recognized in our lists, try navigating directly as a fallback
+                                (navigation as any).navigate(targetScreen);
+                            }
+                        }
+                    } catch (navErr) {
+                        console.warn(`[Notifications] Direct navigation to ${targetScreen} failed:`, navErr);
+                        // Fallback directly to Home if direct navigation fails
+                        (navigation as any).navigate('bottombar', { screen: 'Home' });
+                    }
                 }
-            } else {
-                (navigation as any).navigate(item.screen);
+                return;
             }
+
+            // Case 5: Final fallback to Home if no direct screen or ID mapping succeeds
+            (navigation as any).navigate('bottombar', { screen: 'Home' });
+        } catch (err) {
+            console.warn('[Notifications] Error handling press:', err);
+            showError('Error', 'An error occurred while loading. Please try again.');
+        } finally {
+            setNavigatingId(null);
         }
     };
 

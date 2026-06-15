@@ -198,7 +198,8 @@ const StylePreferenceScreen = ({ navigation }: any) => {
                     userObj.uid,
                     'Preferences Updated',
                     'Your style preferences have been successfully updated. We will now recommend outfits that match your preferences.',
-                    'recommendation'
+                    'recommendation',
+                    'preference'
                 );
             }
 

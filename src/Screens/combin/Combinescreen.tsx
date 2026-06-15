@@ -539,7 +539,9 @@ const CombineScreen = ({ route, navigation }: any) => {
                     user.uid,
                     'Outfit Updated',
                     `Successfully updated your saved outfit look.`,
-                    'system'
+                    'system',
+                    undefined,
+                    { outfitId }
                 );
                 navigation.setParams({ editItems: undefined, outfitId: undefined });
                 navigation.navigate('saveSuccess', { isOutfit: true, isEdit: true });
@@ -550,7 +552,7 @@ const CombineScreen = ({ route, navigation }: any) => {
                 const nextNumber = (countSnap.data().count ?? 0) + 1;
                 const outfitName = `Outfit ${nextNumber}`;
 
-                await addDoc(collection(db, 'outfits'), {
+                const docRef = await addDoc(collection(db, 'outfits'), {
                     userId:      user.uid,
                     name:        outfitName,
                     items,        // { [slotId]: itemId }
@@ -561,7 +563,9 @@ const CombineScreen = ({ route, navigation }: any) => {
                     user.uid,
                     'Outfit Created',
                     `Successfully saved "${outfitName}" to your outfit collection.`,
-                    'system'
+                    'system',
+                    undefined,
+                    { outfitId: docRef.id }
                 );
                 navigation.navigate('saveSuccess', { isOutfit: true, isEdit: false });
             }

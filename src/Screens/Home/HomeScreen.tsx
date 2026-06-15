@@ -375,7 +375,8 @@ const HomeScreen = () => {
                         user.uid,
                         'Welcome to USTYLE! ✦',
                         'Ready to elevate your wardrobe? Add items to your Closet and start building looks in the Combine tab.',
-                        'info'
+                        'info',
+                        'Home'
                     );
                 }
             } catch (err) {
