@@ -12,8 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart } from 'lucide-react-native';
 import { getApp } from '../../firebase/app';
-import { getFirestore, collection, query, where, onSnapshot, doc, getDoc } from '../../firebase/firestore';
-import { getAuth } from '../../firebase/auth';
+import { getFirestore, collection, query, where, onSnapshot, doc, getDoc, deleteDoc, updateDoc, increment } from '../../firebase/firestore';
+import { useAuth } from '../../context';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 40) / 2;
@@ -23,7 +23,7 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
     const [loading, setLoading] = useState(true);
 
     const db = getFirestore(getApp());
-    const user = getAuth().currentUser;
+    const { user } = useAuth();
 
     useEffect(() => {
         if (!user) return;
@@ -32,22 +32,30 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
         const q = query(collection(db, 'likes'), where('userId', '==', user.uid));
         
         const unsubscribe = onSnapshot(q, async (snapshot) => {
-            setLoading(true);
             try {
-                const favItems = [];
-                for (const d of snapshot.docs) {
+                const sortedDocs = [...snapshot.docs].sort((a, b) => {
+                    const aVal = a.data().createdAt;
+                    const bVal = b.data().createdAt;
+                    const aTime = aVal?.toMillis?.() || aVal?.seconds || 0;
+                    const bTime = bVal?.toMillis?.() || bVal?.seconds || 0;
+                    return bTime - aTime;
+                });
+
+                const promises = sortedDocs.map(async (d) => {
                     const likeData = d.data();
-         
                     const itemRef = doc(db, 'closetItems', likeData.itemId);
                     const itemSnap = await getDoc(itemRef);
-                    
                     if (itemSnap.exists()) {
-                        favItems.push({
+                        return {
                             id: itemSnap.id,
                             ...itemSnap.data()
-                        });
+                        };
                     }
-                }
+                    return null;
+                });
+
+                const resolved = await Promise.all(promises);
+                const favItems = resolved.filter((item): item is any => item !== null);
                 setFavorites(favItems);
             } catch (error) {
                 console.error("Error fetching favorites:", error);
@@ -57,7 +65,25 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [user, db]);
+
+    const handleUnlike = useCallback(async (itemId: string) => {
+        if (!user) return;
+
+        // Optimistically remove from state so it disappears instantly
+        setFavorites(prev => prev.filter(item => item.id !== itemId));
+
+        try {
+            const likeRef = doc(db, 'likes', `${user.uid}_${itemId}`);
+            const itemRef = doc(db, 'closetItems', itemId);
+            await deleteDoc(likeRef);
+            await updateDoc(itemRef, {
+                likeCount: increment(-1),
+            });
+        } catch (error) {
+            console.error("Error unfavoriting:", error);
+        }
+    }, [user, db]);
 
     const renderItem = ({ item }: { item: any }) => (
         <View style={styles.card}>
@@ -66,9 +92,13 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
                 <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.meta}>{item.category} · {item.color}</Text>
             </View>
-            <View style={styles.heartBadge}>
+            <TouchableOpacity 
+                style={styles.heartBadge}
+                activeOpacity={0.8}
+                onPress={() => handleUnlike(item.id)}
+            >
                 <Heart size={12} color="#ef4444" fill="#ef4444" />
-            </View>
+            </TouchableOpacity>
         </View>
     );
 

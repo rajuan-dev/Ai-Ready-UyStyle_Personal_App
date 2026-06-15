@@ -26,7 +26,6 @@ import {
     getCountFromServer,
     getDocs,
     limit,
-    orderBy,
 } from '../../firebase/firestore';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 
@@ -136,8 +135,7 @@ const ProfileScreen = () => {
                         query(
                             collection(db, 'likes'),
                             where('userId', '==', uid),
-                            orderBy('createdAt', 'desc'),
-                            limit(2)
+                            limit(20)
                         )
                     ),
                     getDoc(doc(db, 'stylePrefs', uid)),
@@ -160,8 +158,16 @@ const ProfileScreen = () => {
             setOutfitCount(cOutfits);
             setLikesCount(cLikes);
 
+            const sortedPreviewDocs = [...previewSnap.docs].sort((a, b) => {
+                const aVal = a.data().createdAt;
+                const bVal = b.data().createdAt;
+                const aTime = aVal?.toMillis?.() || aVal?.seconds || 0;
+                const bTime = bVal?.toMillis?.() || bVal?.seconds || 0;
+                return bTime - aTime;
+            });
+
             const previews: { id: string; imageURL: string }[] = [];
-            for (const d of previewSnap.docs) {
+            for (const d of sortedPreviewDocs.slice(0, 2)) {
                 const likeData = d.data();
                 if (likeData.imageURL) {
                     previews.push({ id: d.id, imageURL: likeData.imageURL });

@@ -36,8 +36,8 @@ import {
 } from 'lucide-react-native';
 import { styles } from './style';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../context';
 import { getApp } from '../../firebase/app';
-import { getAuth } from '../../firebase/auth';
 import {
     getFirestore,
     collection,
@@ -172,9 +172,8 @@ const ClosetScreen = () => {
     const navigation = useNavigation<any>();
 
     const app  = getApp();
-    const auth = getAuth(app);
     const db   = getFirestore(app);
-    const user = auth.currentUser;
+    const { user } = useAuth();
 
 
     useEffect(() => {
