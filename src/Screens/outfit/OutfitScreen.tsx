@@ -171,6 +171,7 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
     const [hasMore, setHasMore] = useState(false);
     const [activeCardId, setActiveCardId] = useState<string | null>(null);
     const [firedIds, setFiredIds] = useState<Set<string>>(new Set());
+    const [error, setError] = useState<string | null>(null);
 
     const unsubscribeRef = useRef<(() => void) | null>(null);
     const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -178,6 +179,7 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
     // Initial Fetch (Real-time)
     const subscribe = useCallback(() => {
         if (!user) return;
+        setError(null);
         setLoading(true);
 
         const q = query(
@@ -192,9 +194,11 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
             setItems(docs);
             lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
             setHasMore(snapshot.docs.length === PAGE_SIZE);
+            setError(null);
             setLoading(false);
         }, (err) => {
             console.warn('[OutfitScreen]', err);
+            setError('Failed to load saved outfits. Please try again.');
             setLoading(false);
         });
     }, [db, user]);
@@ -306,7 +310,9 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                 <StatusBar barStyle="dark-content" />
                 <View style={styles.header}>
                     <Text style={styles.title}>Saved Outfits</Text>
-                    <Text style={styles.subtitle}>{filteredItems.length} items found</Text>
+                    <Text style={styles.subtitle}>
+                        {loading ? 'Loading...' : `${filteredItems.length} items found`}
+                    </Text>
                 </View>
 
                 {/* Category Chips */}
@@ -322,7 +328,16 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                     ))}
                 </ScrollView>
 
-                {loading ? (
+                {error ? (
+                    <View style={styles.emptyContainer}>
+                        <Text style={styles.emptyIcon}>⚠️</Text>
+                        <Text style={styles.emptyTitle}>Error Loading Outfits</Text>
+                        <Text style={styles.emptySubtitle}>{error}</Text>
+                        <TouchableOpacity style={styles.retryBtn} onPress={subscribe}>
+                            <Text style={styles.retryBtnText}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : loading ? (
                     <View style={styles.skeletonGrid}>{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</View>
                 ) : (
                     <FlatList
@@ -333,9 +348,17 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                         contentContainerStyle={[
                             styles.listContent,
                             { paddingBottom: getTabScreenBottomPadding(insets.bottom) },
+                            filteredItems.length === 0 && { flexGrow: 1, justifyContent: 'center', paddingBottom: 0 },
                         ]}
                         onEndReached={loadMore}
                         onEndReachedThreshold={0.5}
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <Text style={styles.emptyIcon}>👗</Text>
+                                <Text style={styles.emptyTitle}>No Outfits Saved</Text>
+                                <Text style={styles.emptySubtitle}>You haven't saved any looks yet. Head over to the Combine tab to build your first outfit!</Text>
+                            </View>
+                        }
                         renderItem={({ item, index }) => {
                             const displayTitle = item.title === 'Outfit' ? `Outfit ${filteredItems.length - index}` : item.title;
                             return (
