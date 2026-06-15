@@ -1,0 +1,158 @@
+{
+  "debugType": "deviceData",
+  "items": [
+    {
+      "id": "0aJFc916wWyvIvPOM8mI",
+      "title": "pant",
+      "category": "Bottoms",
+      "color": "gray"
+    },
+    {
+      "id": "1rCcjJBMRh0oNEYnrdzW",
+      "title": "sunglasse",
+      "category": "Accessories",
+      "color": "black"
+    },
+    {
+      "id": "ECbNVZUVEgGsrut958Ru",
+      "title": "Snicker",
+      "category": "Shoes",
+      "color": "gray"
+    },
+    {
+      "id": "EvQ3knrK6xHJPREqL3qR",
+      "title": "cap",
+      "category": "Outerwear",
+      "color": "Gray"
+    },
+    {
+      "id": "FDGEValgFk7SNa8ULtn0",
+      "title": "hat",
+      "category": "Outerwear",
+      "color": "black"
+    },
+    {
+      "id": "FO1XiQtbBHfVCkWlyyYk",
+      "title": "Retro_Shades",
+      "category": "Accessories",
+      "color": "Gold"
+    },
+    {
+      "id": "GjMQRvCAYOJn91JQYtua",
+      "title": "Snickers",
+      "category": "Shoes",
+      "color": "white"
+    },
+    {
+      "id": "MQgYXwbxhU6UZIKjLcMW",
+      "title": "t shirt",
+      "category": "Tops",
+      "color": "navy blue"
+    },
+    {
+      "id": "RlK072btNucWcVN6H4jS",
+      "title": "hat",
+      "category": "Outerwear",
+      "color": "black"
+    },
+    {
+      "id": "TSdAzhhIE7B4GaATcUpA",
+      "title": "QA_Blue_Shoes",
+      "category": "Tops",
+      "color": "Blue"
+    },
+    {
+      "id": "U7wT399gwx5ZgRCsbqOZ",
+      "title": "shirt",
+      "category": "Tops",
+      "color": "black check"
+    },
+    {
+      "id": "VTNyweZGKt5dVCnudDnv",
+      "title": "shirt",
+      "category": "Tops",
+      "color": "white check"
+    },
+    {
+      "id": "WnECHIEdrhjEMEOz8sxe",
+      "title": "plants",
+      "category": "Bottoms",
+      "color": "white"
+    },
+    {
+      "id": "cr2jCUnDUyOlM7h1RaYp",
+      "title": "bottom",
+      "category": "Bottoms",
+      "color": "grey"
+    },
+    {
+      "id": "dMYQAKV3ypEA9dZCpHxF",
+      "title": "hat",
+      "category": "Outerwear",
+      "color": "brown"
+    },
+    {
+      "id": "e1Fe9ULSvsJRxo3qIouI",
+      "title": "QA_Blue_BottomsgBlue",
+      "category": "Tops",
+      "color": ""
+    },
+    {
+      "id": "gW4ISRcBh3Md0ZAVwTDC",
+      "title": "T shirt",
+      "category": "Tops",
+      "color": "green"
+    },
+    {
+      "id": "maKYFer8RGAmIYDiOzC1",
+      "title": "shirt",
+      "category": "Tops",
+      "color": "white"
+    },
+    {
+      "id": "oWKH2JycqsXrAKMyYNBY",
+      "title": "pant",
+      "category": "Bottoms",
+      "color": "black"
+    },
+    {
+      "id": "oleuNdWivBtzieRoeEVW",
+      "title": "sneaker",
+      "category": "Shoes",
+      "color": "white"
+    },
+    {
+      "id": "uzplJL8ynFkNBX1tR2jW",
+      "title": "Leaf",
+      "category": "Others",
+      "color": "Green"
+    },
+    {
+      "id": "xMPX1E7N6xeUjfQIQd8W",
+      "title": "pant",
+      "category": "Bottoms",
+      "color": "blue"
+    }
+  ],
+  "stylePrefs": {
+    "occasions": [
+      "work",
+      "outdoor",
+      "date"
+    ],
+    "colors": [
+      "black",
+      "white"
+    ],
+    "styles": [
+      "streetwear",
+      "boho",
+      "casual"
+    ],
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1780747756,
+      "nanoseconds": 883000000
+    }
+  }
+}

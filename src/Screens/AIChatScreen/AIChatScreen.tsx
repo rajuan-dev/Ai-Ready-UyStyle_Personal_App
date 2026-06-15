@@ -155,14 +155,28 @@ function weatherIcon(type: WeatherType | null, size = 14, color = '#64748B') {
 
 function colorMatches(itemColor: string, prefColors: string[]): boolean {
     if (!prefColors?.length) return true;
-    const c = itemColor.toLowerCase();
-    return prefColors.some(
-        p => c.includes(p.toLowerCase()) || p.toLowerCase().includes(c),
-    );
+    if (prefColors.some(p => {
+        const pref = p.trim().toLowerCase();
+        return pref === 'any_color' || pref === 'any color';
+    })) {
+        return true;
+    }
+    if (!itemColor || !itemColor.trim()) return false;
+    const c = itemColor.trim().toLowerCase();
+    return prefColors.some(p => {
+        const pref = p.trim().toLowerCase();
+        if (!pref) return false;
+        return c.includes(pref) || pref.includes(c);
+    });
 }
 
 function shuffleArr<T>(arr: T[]): T[] {
-    return [...arr].sort(() => Math.random() - 0.5);
+    const next = [...arr];
+    for (let i = next.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [next[i], next[j]] = [next[j], next[i]];
+    }
+    return next;
 }
 
 function filterByKeywords(items: ClosetItem[], keywords: string[]): ClosetItem[] {
@@ -176,11 +190,43 @@ function filterByKeywords(items: ClosetItem[], keywords: string[]): ClosetItem[]
     );
 }
 
+function itemMatchesKeywords(item: ClosetItem, keywords: string[]): boolean {
+    if (!keywords.length) return true;
+    const category = (item.category ?? '').toLowerCase();
+    const title = (item.title ?? '').toLowerCase();
+    return keywords.some(k => category.includes(k) || title.includes(k));
+}
+
+const getOutfitSignature = (items: { id: string }[]): string => {
+    return items.map(item => item.id).sort().join(',');
+};
+
+const getCoreSignature = (items: { id: string; category: string }[]): string => {
+    // Treat top + bottom + shoes as the core outfit so accessory-only swaps
+    // do not count as a genuinely new look.
+    const primaryCategoriesRegex = /top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short|shoe|sneaker|boot|loafer|heel|sandal/i;
+    return items
+        .filter(item => primaryCategoriesRegex.test(item.category))
+        .map(item => item.id)
+        .sort()
+        .join(',');
+};
+
+const MAX_COMBO_ENUMERATION = 20000;
+const RANDOM_UNSEEN_TARGET = 360;
+const RANDOM_UNSEEN_ATTEMPTS = 12000;
+
+const getRandomItem = <T,>(arr: T[]): T => {
+    return arr[Math.floor(Math.random() * arr.length)];
+};
+
 function categorise(pool: ClosetItem[]) {
     return {
-        tops:    pool.filter(i => /top|shirt|tee|blouse|hoodie|sweater|jacket|coat|outerwear|vest|tank|sleeveless|polo|knit|layer/i.test(i.category)),
-        bottoms: pool.filter(i => /bottom|pant|jean|skirt|short|trouser|legging|chino/i.test(i.category)),
-        shoes:   pool.filter(i => /shoe|sneaker|boot|sandal|footwear|loafer|heel|oxford|ankle/i.test(i.category)),
+        tops:        pool.filter(i => /top|shirt|sweater|blouse|tee|knit|polo|tank|sleeveless|layer/i.test(i.category)),
+        bottoms:     pool.filter(i => /bottom|pant|jean|skirt|short|trouser|legging|chino/i.test(i.category)),
+        shoes:       pool.filter(i => /shoe|sneaker|boot|sandal|footwear|loafer|heel|oxford|ankle/i.test(i.category)),
+        outerwear:   pool.filter(i => /outer|coat|jacket|blazer|trench|vest/i.test(i.category)),
+        accessories: pool.filter(i => !/top|shirt|sweater|blouse|tee|knit|polo|tank|sleeveless|bottom|pant|jean|skirt|short|trouser|legging|chino|shoe|sneaker|boot|sandal|footwear|loafer|heel|oxford|ankle|outer|coat|jacket|blazer|trench|vest/i.test(i.category)),
     };
 }
 
@@ -191,86 +237,186 @@ function generateOutfits(
     filter:     FilterId,
     stylePrefs: StylePrefs | null,
     weather:    WeatherType | null,
+    shownSignaturesParam?: Set<string>,
+    shownCoreSignaturesParam?: Set<string>,
+    shownItemCountsParam?: Record<string, number>,
     count = 3,
 ): GenerateResult {
+    const shownSignatures = shownSignaturesParam || new Set<string>();
+    const shownCoreSignatures = shownCoreSignaturesParam || new Set<string>();
+    const shownItemCounts = shownItemCountsParam || {};
 
-    /* ── Style-pref gate ── */
-    if (stylePrefs && filter !== 'all') {
-        const prefStylesLower = (stylePrefs.styles ?? []).map(s => s.toLowerCase());
-        const filterInPrefs   = prefStylesLower.some(
-            s => s.includes(filter) || filter.includes(s),
-        );
-        if (!filterInPrefs) return { outfits: [], notEnough: true };
-    }
-
-    /* ── Filter pool by occasion ── */
-    let pool = items;
+    // Use the whole closet for generation. Occasion, weather, and color
+    // preferences are applied later as ranking hints instead of hard filters.
+    const pool = items;
     const occKw = FILTER_KEYWORDS[filter];
-    if (occKw.length) {
-        const filtered = filterByKeywords(items, occKw);
-        pool = filtered.length >= 2 ? filtered : items;
-    }
+    const weatherKw = weather ? WEATHER_KEYWORDS[weather] : [];
+    const preferredColors = stylePrefs?.colors ?? [];
 
-    /* ── Filter pool by weather (local state, no API) ── */
-    if (weather) {
-        const wKw      = WEATHER_KEYWORDS[weather];
-        const wFiltered = filterByKeywords(pool, wKw);
-        pool = wFiltered.length >= 2 ? wFiltered : pool;
-    }
-
-    /* ── Filter pool by color prefs ── */
-    if (stylePrefs?.colors?.length) {
-        const colorFiltered = pool.filter(i =>
-            colorMatches(i.color, stylePrefs.colors),
-        );
-        pool = colorFiltered.length >= 2 ? colorFiltered : pool;
-    }
-
-    if (pool.length < 2) return { outfits: [], notEnough: true };
+    if (pool.length === 0) return { outfits: [], notEnough: true };
 
     /* ── Categorise ── */
-    const { tops, bottoms, shoes } = categorise(pool);
+    const { tops, bottoms, shoes, outerwear, accessories } = categorise(pool);
 
-    /* ── Build outfits ── */
-    const outfits:    Outfit[]     = [];
-    const usedCombos = new Set<string>();
-    const names      = OUTFIT_NAMES[filter];
-    const occasion   = FILTER_TABS.find(t => t.id === filter)?.label ?? 'Everyday';
+    const shuffledTops = shuffleArr(tops);
+    const shuffledBottoms = shuffleArr(bottoms);
+    const shuffledShoes = shuffleArr(shoes);
+    const shuffledOuterwear = shuffleArr(outerwear);
+    const shuffledAccessories = shuffleArr(accessories);
 
-    for (let attempt = 0; attempt < 40 && outfits.length < count; attempt++) {
-        const top    = shuffleArr(tops)[0];
-        const bottom = shuffleArr(bottoms)[0];
-        const shoe   = shuffleArr(shoes)[0];
-        const combo  = [top, bottom, shoe].filter(Boolean) as ClosetItem[];
-        if (combo.length < 1) continue;
+    const topOptions = shuffledTops.length > 0 ? shuffledTops : [null];
+    const bottomOptions = shuffledBottoms.length > 0 ? shuffledBottoms : [null];
+    const shoeOptions = shuffledShoes.length > 0 ? shuffledShoes : [null];
+    const outerOptions = shuffledOuterwear.length > 0 ? [null, ...shuffledOuterwear] : [null];
+    const accessoryOptions = shuffledAccessories.length > 0 ? [null, ...shuffledAccessories] : [null];
+    const totalPossible =
+        topOptions.length *
+        bottomOptions.length *
+        shoeOptions.length *
+        outerOptions.length *
+        accessoryOptions.length;
 
-        const key = combo.map(i => i.id).sort().join('|');
-        if (usedCombos.has(key)) continue;
-        usedCombos.add(key);
+    const unseenCandidates: ClosetItem[][] = [];
+    const seenKeys = new Set<string>();
+    const addCandidate = (combo: ClosetItem[]) => {
+        if (combo.length === 0) return;
+        const sig = getOutfitSignature(combo);
+        if (seenKeys.has(sig)) return;
+        seenKeys.add(sig);
+        if (!shownSignatures.has(sig)) {
+            unseenCandidates.push(combo);
+        }
+    };
 
-        outfits.push({
-            id:      `outfit-${Date.now()}-${outfits.length}`,
-            name:    names[outfits.length % names.length],
-            occasion,
-            weather: weather ?? null,
-            items:   combo,
-        });
+    if (totalPossible <= MAX_COMBO_ENUMERATION) {
+        for (const t of topOptions) {
+            for (const b of bottomOptions) {
+                for (const s of shoeOptions) {
+                    for (const o of outerOptions) {
+                        for (const a of accessoryOptions) {
+                            addCandidate([t, b, s, o, a].filter(Boolean) as ClosetItem[]);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        const targetPoolSize = Math.max(count * 48, RANDOM_UNSEEN_TARGET);
+        const maxAttempts = Math.max(targetPoolSize * 30, RANDOM_UNSEEN_ATTEMPTS);
+
+        for (let attempt = 0; attempt < maxAttempts && unseenCandidates.length < targetPoolSize; attempt += 1) {
+            addCandidate(
+                [
+                    getRandomItem(topOptions),
+                    getRandomItem(bottomOptions),
+                    getRandomItem(shoeOptions),
+                    getRandomItem(outerOptions),
+                    getRandomItem(accessoryOptions),
+                ].filter(Boolean) as ClosetItem[],
+            );
+        }
     }
 
-    /* ── Fallback: any random combos ── */
-    if (outfits.length === 0) {
-        const shuffled = shuffleArr(pool);
-        for (let i = 0; i < Math.min(count, shuffled.length); i++) {
-            const combo = shuffled.slice(i, i + Math.min(3, shuffled.length - i));
-            if (!combo.length) break;
-            outfits.push({
-                id:      `outfit-fallback-${i}`,
-                name:    names[i % names.length],
-                occasion,
-                weather: weather ?? null,
-                items:   combo,
-            });
+    if (unseenCandidates.length === 0) {
+        for (let i = 0; i < pool.length; i += 3) {
+            addCandidate(pool.slice(i, i + 3));
         }
+    }
+
+    /* ── Build count outfits ensuring variation ── */
+    const outfits: Outfit[] = [];
+    const names = OUTFIT_NAMES[filter];
+    const occasion = FILTER_TABS.find(t => t.id === filter)?.label ?? 'Everyday';
+    const shuffledUnseenCandidates = shuffleArr(unseenCandidates);
+
+    for (let oIdx = 0; oIdx < count; oIdx++) {
+        const unseenPoolCandidates = shuffledUnseenCandidates.filter(C => {
+            const sig = getOutfitSignature(C);
+            return !outfits.some(o => getOutfitSignature(o.items) === sig);
+        });
+        const poolCandidates = unseenPoolCandidates;
+
+        if (poolCandidates.length === 0) break;
+
+        const unseenCoreCandidates = poolCandidates.filter(C => {
+            const coreSig = getCoreSignature(C);
+            return (
+                coreSig.length > 0 &&
+                !shownCoreSignatures.has(coreSig) &&
+                !outfits.some(o => getCoreSignature(o.items) === coreSig)
+            );
+        });
+        const selectionCandidates = unseenCoreCandidates.length > 0
+            ? unseenCoreCandidates
+            : poolCandidates;
+
+        const scored = selectionCandidates.map(C => {
+            const coreSig = getCoreSignature(C);
+            let score = 0;
+
+            // Prefer combinations that match the selected quick-fit context
+            // without excluding the rest of the closet.
+            if (occKw.length > 0) {
+                const occasionMatches = C.filter(item => itemMatchesKeywords(item, occKw)).length;
+                score -= occasionMatches * 40;
+            }
+            if (weatherKw.length > 0) {
+                const weatherMatches = C.filter(item => itemMatchesKeywords(item, weatherKw)).length;
+                score -= weatherMatches * 30;
+            }
+            if (preferredColors.length > 0) {
+                const colorMatchesCount = C.filter(item => colorMatches(item.color, preferredColors)).length;
+                score -= colorMatchesCount * 20;
+            }
+
+            if (shownCoreSignatures.has(coreSig)) {
+                score += 1000;
+            }
+            if (outfits.some(o => getCoreSignature(o.items) === coreSig)) {
+                score += 500;
+            }
+            
+            // Item frequency penalties
+            for (const item of C) {
+                const count = shownItemCounts[item.id] || 0;
+                const isPrimary = /top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short/i.test(item.category);
+                score += count * (isPrimary ? 50 : 10);
+            }
+
+            // Batch same item usage penalties
+            for (const item of C) {
+                if (outfits.some(o => o.items.some(oi => oi.id === item.id))) {
+                    const isPrimary = /top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short/i.test(item.category);
+                    score += isPrimary ? 30 : 10;
+                }
+            }
+
+            return { combo: C, score };
+        });
+
+        scored.sort((a, b) => a.score - b.score);
+
+        const bestScore = scored[0]?.score ?? 0;
+        const bestOptions = scored.filter(s => s.score === bestScore);
+        const selectedCombo = bestOptions[Math.floor(Math.random() * bestOptions.length)]?.combo;
+
+        if (!selectedCombo) break;
+
+        const fullSig = getOutfitSignature(selectedCombo);
+        const coreSig = getCoreSignature(selectedCombo);
+        shownSignatures.add(fullSig);
+        shownCoreSignatures.add(coreSig);
+        for (const item of selectedCombo) {
+            shownItemCounts[item.id] = (shownItemCounts[item.id] || 0) + 1;
+        }
+
+        outfits.push({
+            id:      `outfit-${Date.now()}-${oIdx}`,
+            name:    names[oIdx % names.length],
+            occasion,
+            weather: weather ?? null,
+            items:   selectedCombo,
+        });
     }
 
     return { outfits, notEnough: outfits.length === 0 };
@@ -524,6 +670,9 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const [activeFilter, setActiveFilter] = useState<FilterId>('all');
     const [loading,      setLoading]      = useState(true);
     const [generating,   setGenerating]   = useState(false);
+    const shownSignatures = useRef<Set<string>>(new Set());
+    const shownCoreSignatures = useRef<Set<string>>(new Set());
+    const shownItemCounts = useRef<Record<string, number>>({});
 
     /* ── Spin animation on generate ── */
     const spinVal = useRef(new Animated.Value(0)).current;
@@ -561,7 +710,7 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 setStylePrefs(prefs);
 
                 /* Generate first batch (no weather selected) */
-                const result = generateOutfits(items, 'all', prefs, null);
+                const result = generateOutfits(items, 'all', prefs, null, shownSignatures.current, shownCoreSignatures.current, shownItemCounts.current);
                 setOutfits(result.outfits);
                 setNotEnough(result.notEnough);
             } catch (err) {
@@ -578,7 +727,7 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             setGenerating(true);
             triggerSpin();
             setTimeout(() => {
-                const result = generateOutfits(closetItems, filter, stylePrefs, wx);
+                const result = generateOutfits(closetItems, filter, stylePrefs, wx, shownSignatures.current, shownCoreSignatures.current, shownItemCounts.current);
                 setOutfits(result.outfits);
                 setNotEnough(result.notEnough);
                 setGenerating(false);

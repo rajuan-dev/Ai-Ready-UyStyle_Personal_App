@@ -60,6 +60,197 @@ const getDailySeed = () => {
     return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
 };
 
+const getOutfitSignature = (items: { id: string }[]): string => {
+    return items.map(item => item.id).sort().join(',');
+};
+
+const getCoreSignature = (items: { id: string; category: string }[]): string => {
+    // Only tops and bottoms count as the primary outfit signature
+    const primaryCategoriesRegex = /top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short/i;
+    return items
+        .filter(item => primaryCategoriesRegex.test(item.category))
+        .map(item => item.id)
+        .sort()
+        .join(',');
+};
+
+const MAX_COMBO_ENUMERATION = 20000;
+
+const createRandom = (seed: number) => {
+    let s = seed;
+    return () => {
+        s = (s * 1664525 + 1013904223) % 4294967296;
+        return s / 4294967296;
+    };
+};
+
+const getRandomItem = <T,>(arr: (T | null)[]): T | null => {
+    return arr[Math.floor(Math.random() * arr.length)];
+};
+
+function generateSingleOutfit(
+    allItems: RecentClosetItem[],
+    preferences: any,
+    seed: number | null,
+    shownSignaturesParam?: Set<string>,
+    shownCoreSignaturesParam?: Set<string>,
+    shownItemCountsParam?: Record<string, number>
+): RecentClosetItem[] {
+    const shownSignatures = shownSignaturesParam || new Set<string>();
+    const shownCoreSignatures = shownCoreSignaturesParam || new Set<string>();
+    const shownItemCounts = shownItemCountsParam || {};
+    if (allItems.length === 0) return [];
+
+    const rng = seed !== null ? createRandom(seed) : Math.random;
+
+    // Categorize
+    const allTops = allItems.filter(i => /top|shirt|sweater|blouse|tee|knit/i.test(i.category));
+    const allBottoms = allItems.filter(i => /bottom|jean|trouser|pant|skirt|short/i.test(i.category));
+    const allShoes = allItems.filter(i => /shoe|sneaker|boot|loafer|heel|sandal/i.test(i.category));
+    const allOuterwear = allItems.filter(i => /outer|coat|jacket|blazer|trench/i.test(i.category));
+    const allAccessories = allItems.filter(i => !/top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short|shoe|sneaker|boot|loafer|heel|sandal|outer|coat|jacket|blazer|trench/i.test(i.category));
+
+    // Colors pref
+    const preferredColors = preferences?.colors || preferences?.color || [];
+    const isAnyColor = (c: string) => !c || /any_color|any\s+color/i.test(c);
+    const hasColorPref = preferredColors.length > 0 && !preferredColors.every(isAnyColor);
+
+    const colorMatches = (itemColor: string | undefined, prefColors: string[]): boolean => {
+        if (!prefColors?.length) return true;
+        if (prefColors.some(p => {
+            const pref = p.trim().toLowerCase();
+            return pref === 'any_color' || pref === 'any color';
+        })) {
+            return true;
+        }
+        if (!itemColor || !itemColor.trim()) return false;
+        const c = itemColor.trim().toLowerCase();
+        return prefColors.some(p => {
+            const pref = p.trim().toLowerCase();
+            if (!pref) return false;
+            return c.includes(pref) || pref.includes(c);
+        });
+    };
+
+    const getCategoryPool = (list: RecentClosetItem[]) => {
+        if (!hasColorPref) return list;
+        const filtered = list.filter(item => colorMatches(item.color, preferredColors));
+        return filtered.length >= 2 ? filtered : list;
+    };
+
+    const tops = getCategoryPool(allTops);
+    const bottoms = getCategoryPool(allBottoms);
+    const shoes = getCategoryPool(allShoes);
+    const outerwear = getCategoryPool(allOuterwear);
+    const accessories = getCategoryPool(allAccessories);
+
+    const shuffleArr = <T,>(arr: T[]): T[] => {
+        const next = [...arr];
+        for (let i = next.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(rng() * (i + 1));
+            [next[i], next[j]] = [next[j], next[i]];
+        }
+        return next;
+    };
+
+    const shTops = shuffleArr(tops);
+    const shBottoms = shuffleArr(bottoms);
+    const shShoes = shuffleArr(shoes);
+    const shOuter = shuffleArr(outerwear);
+    const shAcc = shuffleArr(accessories);
+
+    const topOptions = shTops.length > 0 ? shTops : [null];
+    const bottomOptions = shBottoms.length > 0 ? shBottoms : [null];
+    const shoeOptions = shShoes.length > 0 ? shShoes : [null];
+    const outerOptions = shOuter.length > 0 ? [null, ...shOuter] : [null];
+    const accessoryOptions = shAcc.length > 0 ? [null, ...shAcc] : [null];
+    const totalPossible =
+        topOptions.length *
+        bottomOptions.length *
+        shoeOptions.length *
+        outerOptions.length *
+        accessoryOptions.length;
+
+    const candidates: RecentClosetItem[][] = [];
+    const seenKeys = new Set<string>();
+    const addCandidate = (combo: RecentClosetItem[]) => {
+        if (combo.length === 0) return;
+        const sig = getOutfitSignature(combo);
+        if (seenKeys.has(sig)) return;
+        seenKeys.add(sig);
+        candidates.push(combo);
+    };
+
+    if (totalPossible <= MAX_COMBO_ENUMERATION) {
+        for (const t of topOptions) {
+            for (const b of bottomOptions) {
+                for (const s of shoeOptions) {
+                    for (const o of outerOptions) {
+                        for (const a of accessoryOptions) {
+                            addCandidate([t, b, s, o, a].filter(Boolean) as RecentClosetItem[]);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        const targetPoolSize = 240;
+        const maxAttempts = 5000;
+
+        for (let attempt = 0; attempt < maxAttempts && candidates.length < targetPoolSize; attempt += 1) {
+            addCandidate(
+                [
+                    getRandomItem(topOptions),
+                    getRandomItem(bottomOptions),
+                    getRandomItem(shoeOptions),
+                    getRandomItem(outerOptions),
+                    getRandomItem(accessoryOptions),
+                ].filter(Boolean) as RecentClosetItem[],
+            );
+        }
+    }
+
+    if (candidates.length === 0) {
+        return allItems.slice(0, 3);
+    }
+
+    // Score candidates
+    let bestCandidates = candidates.filter(c => !shownSignatures.has(getOutfitSignature(c)));
+    if (bestCandidates.length === 0) {
+        shownSignatures.clear();
+        shownCoreSignatures.clear();
+        for (const key of Object.keys(shownItemCounts)) {
+            delete shownItemCounts[key];
+        }
+        bestCandidates = candidates;
+    }
+
+    const freshCoreCandidates = bestCandidates.filter(c => !shownCoreSignatures.has(getCoreSignature(c)));
+    const pool = freshCoreCandidates.length > 0 ? freshCoreCandidates : bestCandidates;
+
+    // Score based on item frequencies
+    const scored = pool.map(C => {
+        const coreSig = getCoreSignature(C);
+        let score = 0;
+        if (shownCoreSignatures.has(coreSig)) {
+            score += 1000;
+        }
+        for (const item of C) {
+            const count = shownItemCounts[item.id] || 0;
+            const isPrimary = /top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short/i.test(item.category);
+            score += count * (isPrimary ? 50 : 10);
+        }
+        return { combo: C, score };
+    });
+
+    scored.sort((a, b) => a.score - b.score);
+    const bestScore = scored[0]?.score ?? 0;
+    const bestOptions = scored.filter(s => s.score === bestScore);
+    const selected = bestOptions[Math.floor(rng() * bestOptions.length)]?.combo || [];
+
+    return selected;
+}
+
 const HomeScreen = () => {
     const insets = useSafeAreaInsets();
 
@@ -74,7 +265,10 @@ const HomeScreen = () => {
     const [photoURL, setPhotoURL] = useState<string | null>(null);
     const [fullName, setFullName] = useState<string>('');
     const [preferences, setPreferences] = useState<any>(null);
-    const [recommendationSeed, setRecommendationSeed] = useState<number>(getDailySeed());
+    const [recommendedOutfit, setRecommendedOutfit] = useState<RecentClosetItem[]>([]);
+    const shownSignatures = useRef<Set<string>>(new Set());
+    const shownCoreSignatures = useRef<Set<string>>(new Set());
+    const shownItemCounts = useRef<Record<string, number>>({});
     const [hasUnread, setHasUnread] = useState<boolean>(false);
 
     // ── 1. Data Fetching ────────────────────────────────
@@ -198,82 +392,25 @@ const HomeScreen = () => {
         return 'What are you wearing today?';
     }, [fullName]);
 
-    // ── Helper: generate recommended outfit for a specific seed ───────────
-    const getOutfitForSeed = useCallback((seed: number) => {
-        if (recentItems.length === 0) return [];
-
-        console.log('[Home] Generating recommendation. Total closet items:', recentItems.length, 'Seed:', seed);
-
-        // Group the entire unfiltered closet by categories first
-        const allTops = recentItems.filter(i => /top|shirt|sweater|blouse|tee|knit/i.test(i.category));
-        const allBottoms = recentItems.filter(i => /bottom|jean|trouser|pant|skirt|short/i.test(i.category));
-        const allShoes = recentItems.filter(i => /shoe|sneaker|boot|loafer|heel|sandal/i.test(i.category));
-        const allOuterwear = recentItems.filter(i => /outer|coat|jacket|blazer|trench/i.test(i.category));
-        const allAccessories = recentItems.filter(i => !/top|shirt|sweater|blouse|tee|knit|bottom|jean|trouser|pant|skirt|short|shoe|sneaker|boot|loafer|heel|sandal|outer|coat|jacket|blazer|trench/i.test(i.category));
-
-        // Color preference (Only apply on the initial daily recommendation pick)
-        const preferredColors = preferences?.colors || preferences?.color || [];
-        const isDailyPick = seed === getDailySeed();
-        const hasColorPref = isDailyPick && preferredColors.length > 0 && !preferredColors.includes('any_color');
-
-        // Apply color preference filter to a specific category list, falling back to full category list if no colors match
-        const getCategoryPool = (list: RecentClosetItem[]) => {
-            if (!hasColorPref) return list;
-            const filtered = list.filter(item => 
-                item.color && preferredColors.some((c: string) => c.toLowerCase() === item.color?.toLowerCase())
-            );
-            return filtered.length > 0 ? filtered : list;
-        };
-
-        const tops = getCategoryPool(allTops);
-        const bottoms = getCategoryPool(allBottoms);
-        const shoes = getCategoryPool(allShoes);
-        const outerwear = getCategoryPool(allOuterwear);
-        const accessories = getCategoryPool(allAccessories);
-
-        console.log('[Home] Smart category pools count:', {
-            tops: tops.length,
-            bottoms: bottoms.length,
-            shoes: shoes.length,
-            outerwear: outerwear.length,
-            accessories: accessories.length,
-        });
-
-        const recommended: RecentClosetItem[] = [];
-
-        const selectItem = (list: RecentClosetItem[]) => {
-            if (list.length === 0) return null;
-            return list[seed % list.length];
-        };
-
-        const top = selectItem(tops);
-        if (top) recommended.push(top);
-
-        const bottom = selectItem(bottoms);
-        if (bottom) recommended.push(bottom);
-
-        const shoe = selectItem(shoes);
-        if (shoe) recommended.push(shoe);
-
-        const outer = selectItem(outerwear);
-        if (outer) recommended.push(outer);
-
-        // Add accessory if available to enrich the recommendation
-        const acc = selectItem(accessories);
-        if (acc) recommended.push(acc);
-
-        // Fallback: if we still have nothing (e.g., no categories match), just return first few items from recent items
-        if (recommended.length === 0) {
-            return recentItems.slice(0, 3);
+    // ── Generate & Sync Recommended Outfit ────────────────
+    useEffect(() => {
+        if (recentItems.length === 0) {
+            setRecommendedOutfit([]);
+            return;
         }
-
-        return recommended;
+        const allExist = recommendedOutfit.length > 0 && recommendedOutfit.every(item => recentItems.some(ri => ri.id === item.id));
+        if (!allExist || recommendedOutfit.length === 0) {
+            const initialOutfit = generateSingleOutfit(recentItems, preferences, getDailySeed(), shownSignatures.current, shownCoreSignatures.current, shownItemCounts.current);
+            setRecommendedOutfit(initialOutfit);
+            if (initialOutfit.length > 0) {
+                shownSignatures.current.add(getOutfitSignature(initialOutfit));
+                shownCoreSignatures.current.add(getCoreSignature(initialOutfit));
+                for (const item of initialOutfit) {
+                    shownItemCounts.current[item.id] = (shownItemCounts.current[item.id] || 0) + 1;
+                }
+            }
+        }
     }, [recentItems, preferences]);
-
-    // ── Generate Recommended Outfit ───────────────────────
-    const recommendedOutfit = useMemo(() => {
-        return getOutfitForSeed(recommendationSeed);
-    }, [getOutfitForSeed, recommendationSeed]);
 
     const recommendedOutfitMessage = useMemo(() => {
         if (recentItems.length === 0) return 'Your closet is empty. Add items!';
@@ -307,33 +444,22 @@ const HomeScreen = () => {
 
     // ── Build Another handler ─────────────────────────────
     const handleBuildAnother = useCallback(() => {
-        let newSeed = recommendationSeed;
-        let attempts = 0;
-        const currentIds = recommendedOutfit.map(i => i.id).join(',');
-        
-        while (attempts < 30) {
-            const tempSeed = Math.floor(Math.random() * 1000000);
-            const tempOutfit = getOutfitForSeed(tempSeed);
-            const tempIds = tempOutfit.map(i => i.id).join(',');
-            if (tempIds !== currentIds || currentIds === '') {
-                newSeed = tempSeed;
-                break;
+        if (recentItems.length === 0) return;
+
+        const newOutfit = generateSingleOutfit(recentItems, preferences, null, shownSignatures.current, shownCoreSignatures.current, shownItemCounts.current);
+        setRecommendedOutfit(newOutfit);
+        if (newOutfit.length > 0) {
+            shownSignatures.current.add(getOutfitSignature(newOutfit));
+            shownCoreSignatures.current.add(getCoreSignature(newOutfit));
+            for (const item of newOutfit) {
+                shownItemCounts.current[item.id] = (shownItemCounts.current[item.id] || 0) + 1;
             }
-            attempts++;
         }
-        
-        if (newSeed === recommendationSeed) {
-            newSeed = Math.floor(Math.random() * 1000000);
-        }
-        
-        console.log('[Home] Build Another clicked. Seed changed from', recommendationSeed, 'to', newSeed);
-        setRecommendationSeed(newSeed);
 
-        if (user) {
-            // Compute the new outfit items immediately so we can store their IDs in the notification
-            const newOutfitItems = getOutfitForSeed(newSeed);
-            const newItemIds = newOutfitItems.map(i => i.id);
+        console.log('[Home] Build Another clicked. New outfit:', newOutfit.map(i => i.name));
 
+        if (user && newOutfit.length > 0) {
+            const newItemIds = newOutfit.map(i => i.id);
             upsertNotification(
                 user.uid,
                 'New Outfit Picked ✦',
@@ -343,8 +469,7 @@ const HomeScreen = () => {
                 { itemIds: newItemIds }
             );
         }
-
-    }, [recommendationSeed, recommendedOutfit, getOutfitForSeed, user]);
+    }, [recentItems, preferences, user]);
 
     // ── 2. Search Logic ─────────────────────────────────
     const [searchVisible, setSearchVisible] = useState(false);
