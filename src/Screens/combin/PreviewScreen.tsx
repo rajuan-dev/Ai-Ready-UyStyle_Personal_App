@@ -270,7 +270,12 @@ import {
     getDocs,
     deleteDoc,
     doc,
+    addDoc,
+    updateDoc,
+    serverTimestamp,
+    getCountFromServer,
 } from '../../firebase/firestore';
+import { addNotification } from '../../utils/notifications';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from '../../firebase/storage';
 
 const { width } = Dimensions.get('window');
@@ -472,6 +477,31 @@ const generateShareHTML = (items: ClosetItem[]) => {
 
 
 
+const DEFAULT_SLOTS = [
+    { id: 'Top',       label: 'Top',       isDefault: true },
+    { id: 'Bottom',    label: 'Bottom',    isDefault: true },
+    { id: 'Shoes',     label: 'Shoes',     isDefault: true },
+    { id: 'Outerwear', label: 'Outerwear', isDefault: true },
+    { id: 'Accessory', label: 'Accessory', isDefault: true },
+];
+
+const resolveSlot = (category: string, slots: any[]): string => {
+    const cat = (category ?? '').toLowerCase().trim();
+
+    const exact = slots.find(s => s.label.toLowerCase() === cat);
+    if (exact) return exact.id;
+
+    if (/top|shirt|sweater|blouse|tee|knit/.test(cat))    return 'Top';
+    if (/bottom|jean|trouser|pant|skirt|short/.test(cat)) return 'Bottom';
+    if (/shoe|sneaker|boot|loafer|heel|sandal/.test(cat)) return 'Shoes';
+    if (/outer|coat|jacket|blazer|trench/.test(cat))      return 'Outerwear';
+
+    const custom = slots.find(s => !s.isDefault && cat.includes(s.label.toLowerCase()));
+    if (custom) return custom.id;
+
+    return 'Accessory';
+};
+
 // ─── Component ─────
 
 const PreviewScreen = ({ route, navigation }: any) => {
@@ -486,6 +516,8 @@ const PreviewScreen = ({ route, navigation }: any) => {
 
     const { showConfirm, showSuccess, showError } = useAppAlert();
     const [sharing, setSharing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [customSlots, setCustomSlots] = useState<any[]>([]);
 
     const handleDeleteOutfit = () => {
         if (!outfitId) {
@@ -510,6 +542,107 @@ const PreviewScreen = ({ route, navigation }: any) => {
 
     const handleEditOutfit = () => {
         navigation.navigate('combine', { editItems: items, outfitId });
+    };
+
+    const handleConfirmLook = async () => {
+        if (saving) return;
+        if (items.length === 0) {
+            Alert.alert('Empty', 'No items in the outfit to save.');
+            return;
+        }
+        if (!user) {
+            Alert.alert('Error', 'Not signed in.');
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            const allSlots = [...DEFAULT_SLOTS, ...customSlots];
+
+            // Build items map and itemDetails map
+            const itemsMap: Record<string, string> = {};
+            const itemDetailsMap: Record<string, any> = {};
+
+            items.forEach((item: ClosetItem) => {
+                let slotId = (item as any).slotId || resolveSlot(item.category, allSlots);
+                // Avoid key duplication in items map
+                if (itemsMap[slotId]) {
+                    slotId = `${slotId}_${item.id}`;
+                }
+                itemsMap[slotId] = item.id;
+                itemDetailsMap[item.id] = {
+                    title: item.title,
+                    category: item.category,
+                    color: item.color || '',
+                    imageURL: item.imageURL || (item as any).image || '',
+                };
+            });
+
+            // Check if the outfit signature already exists
+            const currentOutfitSignature = items.map(i => i.id).sort().join(',');
+            const qOutfits = query(collection(db, 'outfits'), where('userId', '==', user.uid));
+            const snapOutfits = await getDocs(qOutfits);
+
+            let existingOutfitDoc = null;
+            for (const docSnap of snapOutfits.docs) {
+                const data = docSnap.data();
+                const existingItemIds = Object.keys(data.itemDetails || {}).sort().join(',');
+                if (existingItemIds === currentOutfitSignature) {
+                    existingOutfitDoc = docSnap;
+                    break;
+                }
+            }
+
+            if (existingOutfitDoc) {
+                // If it already exists, update its timestamp to bring it to the top
+                const outfitRef = doc(db, 'outfits', existingOutfitDoc.id);
+                await updateDoc(outfitRef, {
+                    createdAt: serverTimestamp(),
+                });
+
+                await addNotification(
+                    user.uid,
+                    'Outfit Saved',
+                    'Successfully saved outfit to your collection.',
+                    'system',
+                    undefined,
+                    { outfitId: existingOutfitDoc.id }
+                );
+
+                navigation.navigate('saveSuccess', { isOutfit: true, isEdit: false });
+            } else {
+                // Fetch next outfit number for default name
+                const qCount = query(collection(db, 'outfits'), where('userId', '==', user.uid));
+                const countSnap = await getCountFromServer(qCount);
+                const nextNumber = (countSnap.data().count ?? 0) + 1;
+                const outfitName = `Outfit ${nextNumber}`;
+
+                const docRef = await addDoc(collection(db, 'outfits'), {
+                    userId: user.uid,
+                    name: outfitName,
+                    items: itemsMap,
+                    itemDetails: itemDetailsMap,
+                    createdAt: serverTimestamp(),
+                });
+
+                await addNotification(
+                    user.uid,
+                    'Outfit Created',
+                    `Successfully saved "${outfitName}" to your outfit collection.`,
+                    'system',
+                    undefined,
+                    { outfitId: docRef.id }
+                );
+
+                navigation.navigate('saveSuccess', { isOutfit: true, isEdit: false });
+            }
+        } catch (err) {
+            console.warn('[ConfirmLook] Save error:', err);
+            showError('Error', 'Save failed. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     // ── Share handler ───────────────────────────────────────────────────
@@ -585,7 +718,14 @@ const PreviewScreen = ({ route, navigation }: any) => {
                     collection(db, 'outfitSlots'),
                     where('userId', '==', user.uid),
                 );
-                await getDocs(q);
+                const snap = await getDocs(q);
+                const slots = snap.docs.map(d => ({
+                    id: d.id,
+                    label: d.data().label as string,
+                    isDefault: false,
+                    createdAt: d.data().createdAt,
+                }));
+                setCustomSlots(slots);
             } catch (e) {
                 console.warn(e);
             } finally {
@@ -764,19 +904,25 @@ const PreviewScreen = ({ route, navigation }: any) => {
             ) : (
                 <View style={st.bottomBar}>
                     <TouchableOpacity
-                        style={st.backOutfitBtn}
+                        style={[st.backOutfitBtn, saving && st.backOutfitBtnDisabled]}
                         onPress={() => navigation.navigate('combine', { editItems: items })}
                         activeOpacity={0.8}
+                        disabled={saving}
                     >
                         <Text style={st.backOutfitTxt}>Edit Outfit</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={st.confirmBtn}
-                        onPress={() => navigation.goBack()}
+                        style={[st.confirmBtn, saving && st.confirmBtnDisabled]}
+                        onPress={handleConfirmLook}
                         activeOpacity={0.85}
+                        disabled={saving}
                     >
-                        <Text style={st.confirmTxt}>Confirm Look</Text>
+                        {saving ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <Text style={st.confirmTxt}>Confirm Look</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             )}
@@ -1008,6 +1154,9 @@ const st = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    backOutfitBtnDisabled: {
+        opacity: 0.5,
+    },
     backOutfitTxt: {
         fontSize: 14,
         fontFamily: 'InterSemiBold',
@@ -1021,6 +1170,9 @@ const st = StyleSheet.create({
         backgroundColor: '#2869BD',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    confirmBtnDisabled: {
+        backgroundColor: '#94A3B8',
     },
     confirmTxt: {
         fontSize: 14,
