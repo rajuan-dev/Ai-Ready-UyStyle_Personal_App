@@ -19,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Bell, ChevronRight, Search, Sparkles, Zap, X, User } from 'lucide-react-native';
 import { styles } from './style';
 import { useNavigation } from '@react-navigation/native';
+import { useAppAlert } from '../../context/AlertContext';
 import { OutfitCollage } from '../../components/OutfitCollage';
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
@@ -255,6 +256,7 @@ const HomeScreen = () => {
     const insets = useSafeAreaInsets();
 
     const navigation = useNavigation<any>();
+    const { showAlert } = useAppAlert();
 
     const app = getApp();
     const auth = getAuth(app);
@@ -431,16 +433,16 @@ const HomeScreen = () => {
             }));
             navigation.navigate('preview', { items: previewItems, isSaved: false });
         } else {
-            Alert.alert(
-                'No Closet Items',
-                'Add items to your closet to get outfit recommendations!',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Add Item', onPress: () => navigation.navigate('AddItemEditor') },
-                ],
-            );
+            showAlert({
+                title: 'No Closet Items',
+                message: 'Add items to your closet to get outfit recommendations!',
+                type: 'confirm',
+                confirmText: 'Add Item',
+                cancelText: 'Cancel',
+                onConfirm: () => navigation.navigate('AddItemEditor'),
+            });
         }
-    }, [recommendedOutfit, navigation]);
+    }, [recommendedOutfit, navigation, showAlert]);
 
     // ── Build Another handler ─────────────────────────────
     const handleBuildAnother = useCallback(() => {

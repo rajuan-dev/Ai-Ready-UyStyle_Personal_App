@@ -661,6 +661,44 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const db   = getFirestore(app);
     const user = getAuth(app).currentUser;
 
+    const handleAddItems = useCallback(() => {
+        if (!navigation) {
+            console.warn('[AIChatScreen] Navigation object is not available.');
+            return;
+        }
+
+        const auth = getAuth(app);
+        if (!auth.currentUser) {
+            console.warn('[AIChatScreen] User is not authenticated.');
+            try {
+                if (typeof navigation.navigate === 'function') {
+                    navigation.navigate('signin');
+                }
+            } catch (err) {
+                console.error('[AIChatScreen] Navigation to signin failed:', err);
+            }
+            return;
+        }
+
+        try {
+            if (typeof navigation.navigate === 'function') {
+                navigation.navigate('bottombar', { screen: 'Add' });
+            } else {
+                console.warn('[AIChatScreen] navigation.navigate is not a function');
+            }
+        } catch (error) {
+            console.warn('[AIChatScreen] Failed to navigate to bottombar Add tab, trying fallback:', error);
+            try {
+                if (typeof navigation.navigate === 'function') {
+                    navigation.navigate('AddItemEditor');
+                }
+            } catch (fallbackError) {
+                console.error('[AIChatScreen] Navigation fallback failed:', fallbackError);
+            }
+        }
+    }, [navigation, app]);
+
+
     /* ── State ── */
     const [closetItems,  setClosetItems]  = useState<ClosetItem[]>([]);
     const [stylePrefs,   setStylePrefs]   = useState<StylePrefs | null>(null);
@@ -822,7 +860,7 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <EmptyState
                     filter={activeFilter}
                     prefs={stylePrefs}
-                    onAdd={() => navigation.navigate('Add')}
+                    onAdd={handleAddItems}
                 />
             ) : (
                 <FlatList
@@ -845,7 +883,7 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         <EmptyState
                             filter={activeFilter}
                             prefs={stylePrefs}
-                            onAdd={() => navigation.navigate('Add')}
+                            onAdd={handleAddItems}
                         />
                     }
                     ListFooterComponent={
