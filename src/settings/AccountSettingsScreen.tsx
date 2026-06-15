@@ -12,9 +12,15 @@ import {
     Platform,
     ActionSheetIOS,
     PermissionsAndroid,
+    Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronRight, User, Mail, Lock, Camera } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, User, Mail, Lock, Camera, Bell } from 'lucide-react-native';
+import {
+    requestNotificationPermission,
+    scheduleDailyReminder,
+    cancelDailyReminder,
+} from '../utils/notifications';
 import { useNavigation } from '@react-navigation/native';
 import {
     launchCamera,
@@ -32,6 +38,7 @@ interface UserProfile {
     fullName: string;
     email: string;
     photoURL?: string;
+    dailyRemindersEnabled?: boolean;
 }
 
 interface SettingRowProps {
@@ -75,6 +82,40 @@ const SettingRow = React.memo(({
     </TouchableOpacity>
 ));
 
+interface SettingSwitchRowProps {
+    icon: React.ComponentType<{ size: number; color: string }>;
+    label: string;
+    value: boolean;
+    onValueChange: (val: boolean) => void;
+    isLast?: boolean;
+    disabled?: boolean;
+}
+
+const SettingSwitchRow = React.memo(({
+    icon: Icon,
+    label,
+    value,
+    onValueChange,
+    isLast,
+    disabled,
+}: SettingSwitchRowProps) => (
+    <View style={[styles.row, isLast && styles.noBorder]}>
+        <View style={styles.rowLeft}>
+            <View style={styles.iconContainer}>
+                <Icon size={20} color="#64748B" />
+            </View>
+            <Text style={styles.rowLabel}>{label}</Text>
+        </View>
+        <Switch
+            value={value}
+            onValueChange={onValueChange}
+            disabled={disabled}
+            trackColor={{ false: '#E2E8F0', true: '#2869BD' }}
+            thumbColor={Platform.OS === 'android' ? (value ? '#FFFFFF' : '#F1F5F9') : undefined}
+        />
+    </View>
+));
+
 // ─── Camera permission (Android only) ────────────────────────────────────────
 
 const requestCameraPermission = async (): Promise<boolean> => {
@@ -114,6 +155,7 @@ const AccountSettingsScreen = () => {
     const [loading,       setLoading]       = useState(true);
     const [error,         setError]         = useState<string | null>(null);
     const [photoUploading, setPhotoUploading] = useState(false);
+    const [updatingReminders, setUpdatingReminders] = useState(false);
 
     // ── Firestore listener ─────────────────────────────────────────────────────
     useEffect(() => {
@@ -133,6 +175,7 @@ const AccountSettingsScreen = () => {
                         fullName: data?.fullName ?? '',
                         email:    data?.email    ?? currentUser.email ?? '',
                         photoURL: data?.photoURL ?? undefined,
+                        dailyRemindersEnabled: data?.dailyRemindersEnabled ?? false,
                     });
                 } else {
                     setError('Profile not found.');
@@ -220,6 +263,41 @@ const AccountSettingsScreen = () => {
                 { text: '📷 Take Photo',           onPress: openCamera },
                 { text: '📁 Choose from Gallery',  onPress: openGallery },
             ]);
+        }
+    };
+
+    // ── Notification toggle handler ────────────────────────────────────────────
+    const handleToggleDailyReminders = async (value: boolean) => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        setUpdatingReminders(true);
+        try {
+            if (value) {
+                const permissionGranted = await requestNotificationPermission();
+                if (permissionGranted) {
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        dailyRemindersEnabled: true,
+                    });
+                    await scheduleDailyReminder();
+                } else {
+                    Alert.alert(
+                        'Notification Permission',
+                        'To receive daily reminders, please enable notifications in your device settings.',
+                        [{ text: 'OK' }]
+                    );
+                }
+            } else {
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    dailyRemindersEnabled: false,
+                });
+                await cancelDailyReminder();
+            }
+        } catch (err: any) {
+            console.error('Failed to toggle daily reminders:', err);
+            Alert.alert('Error', 'Failed to update reminder settings.');
+        } finally {
+            setUpdatingReminders(false);
         }
     };
 
@@ -336,6 +414,21 @@ const AccountSettingsScreen = () => {
                             label="Email"
                             value={profile?.email}
                             onPress={handleEditEmail}
+                            isLast
+                        />
+                    </View>
+                </View>
+
+                {/* ── Notifications ── */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
+                    <View style={styles.card}>
+                        <SettingSwitchRow
+                            icon={Bell}
+                            label="Daily Outfit Reminders"
+                            value={profile?.dailyRemindersEnabled ?? false}
+                            onValueChange={handleToggleDailyReminders}
+                            disabled={updatingReminders}
                             isLast
                         />
                     </View>
