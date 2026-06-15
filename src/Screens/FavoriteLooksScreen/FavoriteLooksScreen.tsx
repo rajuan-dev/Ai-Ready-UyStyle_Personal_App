@@ -20,9 +20,23 @@ import { useAuth } from '../../context';
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 40) / 2;
 
+// Memory cache for resolved favorites list
+let favoritesCache: any[] | null = null;
+// Cache for resolved individual closet items to avoid redundant getDocs
+const resolvedClosetItemsCache = new Map<string, any>();
+
+export const invalidateFavoriteLooksCache = (itemId?: string) => {
+    if (itemId) {
+        resolvedClosetItemsCache.delete(itemId);
+    } else {
+        resolvedClosetItemsCache.clear();
+        favoritesCache = null;
+    }
+};
+
 const FavoriteLooksScreen = ({ navigation }: any) => {
-    const [favorites, setFavorites] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [favorites, setFavorites] = useState<any[]>(favoritesCache || []);
+    const [loading, setLoading] = useState(!favoritesCache);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
     const db = getFirestore(getApp());
@@ -46,19 +60,26 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
 
                 const promises = sortedDocs.map(async (d) => {
                     const likeData = d.data();
-                    const itemRef = doc(db, 'closetItems', likeData.itemId);
+                    const itemId = likeData.itemId;
+                    if (resolvedClosetItemsCache.has(itemId)) {
+                        return resolvedClosetItemsCache.get(itemId);
+                    }
+                    const itemRef = doc(db, 'closetItems', itemId);
                     const itemSnap = await getDoc(itemRef);
                     if (itemSnap.exists()) {
-                        return {
+                        const resolvedItem = {
                             id: itemSnap.id,
                             ...itemSnap.data()
                         };
+                        resolvedClosetItemsCache.set(itemId, resolvedItem);
+                        return resolvedItem;
                     }
                     return null;
                 });
 
                 const resolved = await Promise.all(promises);
                 const favItems = resolved.filter((item): item is any => item !== null);
+                favoritesCache = favItems;
                 setFavorites(favItems);
             } catch (error) {
                 console.error("Error fetching favorites:", error);

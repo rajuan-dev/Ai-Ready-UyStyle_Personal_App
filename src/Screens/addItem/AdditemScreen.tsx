@@ -37,6 +37,8 @@ import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
 import { useAppAlert } from '../../context/AlertContext';
 import { addNotification } from '../../utils/notifications';
+import { invalidateFavoriteLooksCache } from '../FavoriteLooksScreen/FavoriteLooksScreen';
+import { invalidateClosetCache } from '../closet/ClosetScreen';
 import {
     getFirestore,
     collection,
@@ -422,6 +424,8 @@ const AdditemScreen = () => {
                     color:  color.trim(),
                     imageURL: finalImageURL,
                 });
+                invalidateFavoriteLooksCache(initialItem.id);
+                invalidateClosetCache();
                 await addNotification(
                     user.uid,
                     'Closet Updated',
@@ -442,6 +446,8 @@ const AdditemScreen = () => {
                     imageURL: finalImageURL,
                     createdAt: serverTimestamp(),
                 });
+                invalidateFavoriteLooksCache(docRef.id);
+                invalidateClosetCache();
                 await addNotification(
                     user.uid,
                     'Closet Updated',
@@ -495,6 +501,8 @@ const AdditemScreen = () => {
 
                     // 3. Delete Firestore closetItem document
                     await deleteDoc(doc(db, 'closetItems', initialItem.id));
+                    invalidateFavoriteLooksCache(initialItem.id);
+                    invalidateClosetCache();
                     await addNotification(
                         user.uid,
                         'Closet Updated',

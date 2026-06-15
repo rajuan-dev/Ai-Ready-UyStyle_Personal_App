@@ -36,6 +36,7 @@ import {
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
 import { addNotification } from '../../utils/notifications';
+import { invalidateOutfitsCache } from '../outfit/OutfitScreen';
 import {
     getFirestore,
     collection,
@@ -544,6 +545,7 @@ const CombineScreen = ({ route, navigation }: any) => {
                     itemDetails,  // { [itemId]: ItemDetail }
                     updatedAt:   serverTimestamp(),
                 });
+                invalidateOutfitsCache();
                 await addNotification(
                     user.uid,
                     'Outfit Updated',
@@ -568,6 +570,7 @@ const CombineScreen = ({ route, navigation }: any) => {
                     itemDetails,  // { [itemId]: ItemDetail }
                     createdAt:   serverTimestamp(),
                 });
+                invalidateOutfitsCache();
                 await addNotification(
                     user.uid,
                     'Outfit Created',

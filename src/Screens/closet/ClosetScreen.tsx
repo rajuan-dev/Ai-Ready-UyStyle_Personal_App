@@ -155,12 +155,18 @@ const ItemCard: React.FC<ItemCardProps> = React.memo(({ item, liked, onToggle, o
 });
 
 // ─── ClosetScreen ─────────────────────────────────────────────────────────────
+let closetItemsCache: ClosetItem[] | null = null;
+
+export const invalidateClosetCache = () => {
+    closetItemsCache = null;
+};
+
 const ClosetScreen = () => {
     const insets = useSafeAreaInsets();
 
-    const [items,            setItems]            = useState<ClosetItem[]>([]);
+    const [items,            setItems]            = useState<ClosetItem[]>(closetItemsCache || []);
     const [likedIds,         setLikedIds]         = useState<Set<string>>(new Set());
-    const [loading,          setLoading]          = useState(true);
+    const [loading,          setLoading]          = useState(!closetItemsCache);
     const [loadingMore,      setLoadingMore]      = useState(false);
     const [hasMore,          setHasMore]          = useState(true);
     const [pageSize,         setPageSize]         = useState(PAGE_SIZE);
@@ -224,6 +230,7 @@ const ClosetScreen = () => {
                     );
 
                 setItems(data);
+                closetItemsCache = data;
                 setHasMore(snap.docs.length === pageSize);
                 setLoading(false);
                 setLoadingMore(false);

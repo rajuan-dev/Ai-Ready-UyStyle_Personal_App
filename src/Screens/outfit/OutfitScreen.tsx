@@ -158,6 +158,11 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
 });
 
 // --- Main Screen ---
+let outfitsCache: OutfitItem[] | null = null;
+
+export const invalidateOutfitsCache = () => {
+    outfitsCache = null;
+};
 
 const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = ({ onOutfitPress }) => {
     const navigation = useNavigation<any>();
@@ -188,9 +193,9 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
         return unsubscribe;
     }, [navigation, route.params?.fromProfile]);
 
-    const [items, setItems] = useState<OutfitItem[]>([]);
+    const [items, setItems] = useState<OutfitItem[]>(outfitsCache || []);
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!outfitsCache);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
     const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -204,7 +209,9 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
     const subscribe = useCallback(() => {
         if (!user) return;
         setError(null);
-        setLoading(true);
+        if (!outfitsCache) {
+            setLoading(true);
+        }
 
         const q = query(
             collection(db, 'outfits'),
@@ -216,6 +223,7 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
         unsubscribeRef.current = onSnapshot(q, (snapshot) => {
             const docs = snapshot.docs.map(mapFirestoreDoc);
             setItems(docs);
+            outfitsCache = docs;
             lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
             setHasMore(snapshot.docs.length === PAGE_SIZE);
             setError(null);
@@ -273,6 +281,7 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
             async () => {
                 try {
                     await deleteDoc(doc(db, 'outfits', item.id));
+                    outfitsCache = outfitsCache ? outfitsCache.filter(i => i.id !== item.id) : null;
                     setItems(prev => prev.filter(i => i.id !== item.id));
                     setActiveCardId(null);
                     showSuccess('Deleted', `${item.title} has been removed.`);

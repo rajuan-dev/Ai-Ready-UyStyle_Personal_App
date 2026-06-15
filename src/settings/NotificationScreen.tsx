@@ -78,7 +78,8 @@ const formatTime = (createdAt: any) => {
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// Memory cache for notifications to persist across entries
+let notificationsCache: Notification[] | null = null;
 
 const NotificationScreen = () => {
     const navigation = useNavigation();
@@ -88,8 +89,8 @@ const NotificationScreen = () => {
     const user = auth.currentUser;
     const { showConfirm, showError } = useAppAlert();
 
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [notifications, setNotifications] = useState<Notification[]>(notificationsCache || []);
+    const [loading, setLoading] = useState(!notificationsCache);
     const [clearing, setClearing] = useState(false);
     const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
@@ -114,6 +115,7 @@ const NotificationScreen = () => {
                     ...(d.data() as Omit<Notification, 'id'>),
                 }));
                 setNotifications(list);
+                notificationsCache = list;
                 setLoading(false);
             },
             (error) => {

@@ -252,6 +252,13 @@ function generateSingleOutfit(
     return selected;
 }
 
+// Memory caches to persist across tab switches / remounts
+let homeProfileCache: { photoURL: string | null; fullName: string } | null = null;
+let homeRecentItemsCache: RecentClosetItem[] | null = null;
+let homeRecentOutfitsCache: RecentOutfit[] | null = null;
+let homeHasUnreadCache: boolean | null = null;
+let homeRecommendedOutfitCache: RecentClosetItem[] | null = null;
+
 const HomeScreen = () => {
     const insets = useSafeAreaInsets();
 
@@ -262,16 +269,16 @@ const HomeScreen = () => {
     const auth = getAuth(app);
     const db = getFirestore(app);
     const user = auth.currentUser;
-    const [recentItems, setRecentItems] = useState<RecentClosetItem[]>([]);
-    const [recentOutfits, setRecentOutfits] = useState<RecentOutfit[]>([]);
-    const [photoURL, setPhotoURL] = useState<string | null>(null);
-    const [fullName, setFullName] = useState<string>('');
+    const [recentItems, setRecentItems] = useState<RecentClosetItem[]>(homeRecentItemsCache || []);
+    const [recentOutfits, setRecentOutfits] = useState<RecentOutfit[]>(homeRecentOutfitsCache || []);
+    const [photoURL, setPhotoURL] = useState<string | null>(homeProfileCache?.photoURL ?? null);
+    const [fullName, setFullName] = useState<string>(homeProfileCache?.fullName ?? '');
     const [preferences, setPreferences] = useState<any>(null);
-    const [recommendedOutfit, setRecommendedOutfit] = useState<RecentClosetItem[]>([]);
+    const [recommendedOutfit, setRecommendedOutfit] = useState<RecentClosetItem[]>(homeRecommendedOutfitCache || []);
     const shownSignatures = useRef<Set<string>>(new Set());
     const shownCoreSignatures = useRef<Set<string>>(new Set());
     const shownItemCounts = useRef<Record<string, number>>({});
-    const [hasUnread, setHasUnread] = useState<boolean>(false);
+    const [hasUnread, setHasUnread] = useState<boolean>(homeHasUnreadCache || false);
 
     // ── 1. Data Fetching ────────────────────────────────
     useEffect(() => {
@@ -281,8 +288,11 @@ const HomeScreen = () => {
         const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
             if (snap.exists()) {
                 const data = snap.data();
-                setPhotoURL(data?.photoURL || null);
-                setFullName(data?.fullName || '');
+                const pURL = data?.photoURL || null;
+                const fName = data?.fullName || '';
+                setPhotoURL(pURL);
+                setFullName(fName);
+                homeProfileCache = { photoURL: pURL, fullName: fName };
             }
         });
 
@@ -304,18 +314,18 @@ const HomeScreen = () => {
             limit(20),
         );
         const unsubItems = onSnapshot(itemsQuery, snapshot => {
-            setRecentItems(
-                snapshot.docs.map(d => {
-                    const data = d.data() as any;
-                    return {
-                        id: d.id,
-                        name: data.title || 'Untitled item',
-                        category: data.category || 'Uncategorized',
-                        image: data.imageURL || '',
-                        color: data.color || '',
-                    };
-                }),
-            );
+            const items = snapshot.docs.map(d => {
+                const data = d.data() as any;
+                return {
+                    id: d.id,
+                    name: data.title || 'Untitled item',
+                    category: data.category || 'Uncategorized',
+                    image: data.imageURL || '',
+                    color: data.color || '',
+                };
+            });
+            setRecentItems(items);
+            homeRecentItemsCache = items;
         });
 
         // Recent Outfits (Limit to 3 for rotation)
@@ -326,20 +336,20 @@ const HomeScreen = () => {
             limit(3),
         );
         const unsubOutfits = onSnapshot(outfitsQuery, snapshot => {
-            setRecentOutfits(
-                snapshot.docs.map(d => {
-                    const data = d.data() as any;
-                    const itemDetails = data.itemDetails || {};
-                    const firstKey = Object.keys(itemDetails)[0];
-                    const details = firstKey ? itemDetails[firstKey] : null;
-                    return {
-                        id: d.id,
-                        name: data.name || 'Your Outfit',
-                        image: details?.imageURL || data.imageURL || '',
-                        rawItemDetails: itemDetails,
-                    };
-                }),
-            );
+            const outfits = snapshot.docs.map(d => {
+                const data = d.data() as any;
+                const itemDetails = data.itemDetails || {};
+                const firstKey = Object.keys(itemDetails)[0];
+                const details = firstKey ? itemDetails[firstKey] : null;
+                return {
+                    id: d.id,
+                    name: data.name || 'Your Outfit',
+                    image: details?.imageURL || data.imageURL || '',
+                    rawItemDetails: itemDetails,
+                };
+            });
+            setRecentOutfits(outfits);
+            homeRecentOutfitsCache = outfits;
         });
 
         // Unread Notifications Sync
@@ -350,7 +360,9 @@ const HomeScreen = () => {
             limit(1)
         );
         const unsubUnread = onSnapshot(notifsQuery, snapshot => {
-            setHasUnread(!snapshot.empty);
+            const isUnread = !snapshot.empty;
+            setHasUnread(isUnread);
+            homeHasUnreadCache = isUnread;
         });
 
         return () => {
@@ -399,12 +411,14 @@ const HomeScreen = () => {
     useEffect(() => {
         if (recentItems.length === 0) {
             setRecommendedOutfit([]);
+            homeRecommendedOutfitCache = [];
             return;
         }
         const allExist = recommendedOutfit.length > 0 && recommendedOutfit.every(item => recentItems.some(ri => ri.id === item.id));
         if (!allExist || recommendedOutfit.length === 0) {
             const initialOutfit = generateSingleOutfit(recentItems, preferences, getDailySeed(), shownSignatures.current, shownCoreSignatures.current, shownItemCounts.current);
             setRecommendedOutfit(initialOutfit);
+            homeRecommendedOutfitCache = initialOutfit;
             if (initialOutfit.length > 0) {
                 shownSignatures.current.add(getOutfitSignature(initialOutfit));
                 shownCoreSignatures.current.add(getCoreSignature(initialOutfit));
@@ -451,6 +465,7 @@ const HomeScreen = () => {
 
         const newOutfit = generateSingleOutfit(recentItems, preferences, null, shownSignatures.current, shownCoreSignatures.current, shownItemCounts.current);
         setRecommendedOutfit(newOutfit);
+        homeRecommendedOutfitCache = newOutfit;
         if (newOutfit.length > 0) {
             shownSignatures.current.add(getOutfitSignature(newOutfit));
             shownCoreSignatures.current.add(getCoreSignature(newOutfit));
