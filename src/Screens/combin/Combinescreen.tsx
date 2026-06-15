@@ -96,6 +96,7 @@ const DEFAULT_SLOTS: OutfitSlot[] = [
 ];
 
 const QUICK_PICKS = ['Hat', 'Bag', 'Watch', 'Scarf', 'Belt', 'Sunglasses', 'Jewelry', 'Socks'];
+const EMPTY_EDIT_ITEMS: ClosetItem[] = [];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -124,7 +125,12 @@ const resolveSlot = (category: string, slots: OutfitSlot[]): string => {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CombineScreen = ({ route, navigation }: any) => {
-    const { editItems = [], outfitId = null } = route?.params || {};
+    const routeParams = route?.params;
+    const editItems: ClosetItem[] = Array.isArray(routeParams?.editItems)
+        ? routeParams.editItems
+        : EMPTY_EDIT_ITEMS;
+    const outfitId = routeParams?.outfitId ?? null;
+    const initialItem = routeParams?.initialItem ?? null;
 
     const app  = getApp();
     const auth = getAuth(app);
@@ -133,10 +139,10 @@ const CombineScreen = ({ route, navigation }: any) => {
 
     const loadedEditRef = useRef(false);
 
-    // Reset edit loaded state when outfitId or editItems change
+    // Reset edit loaded state when outfitId, editItems, or initialItem change
     useEffect(() => {
         loadedEditRef.current = false;
-    }, [outfitId, editItems]);
+    }, [outfitId, editItems, initialItem]);
 
     // ── State ────────────────────────────────────────────────────────────────
 
@@ -282,8 +288,11 @@ const CombineScreen = ({ route, navigation }: any) => {
         if (editItems && editItems.length > 0) {
             return editItems;
         }
+        if (initialItem) {
+            return [initialItem];
+        }
         return fetchedItemsState || [];
-    }, [editItems, fetchedItemsState]);
+    }, [editItems, fetchedItemsState, initialItem]);
 
     // Pre-populate slotMap when editing a saved/generated outfit
     useEffect(() => {
@@ -313,13 +322,13 @@ const CombineScreen = ({ route, navigation }: any) => {
                 });
 
                 loadedEditRef.current = true;
-            } else if (editItems.length === 0 && !outfitId) {
-                // Reset slots when starting a new outfit (no edit params)
+            } else if (editItems.length === 0 && !outfitId && !initialItem) {
+                // Reset slots when starting a new outfit (no edit/initial params)
                 setSlotMap(() => Object.fromEntries(allSlots.map(s => [s.id, null])));
                 loadedEditRef.current = true;
             }
         }
-    }, [itemsToLoad, editItems, outfitId, closetItems, allSlots]);
+    }, [itemsToLoad, editItems, outfitId, initialItem, closetItems, allSlots]);
 
     // ── Firebase: custom slots ───────────────────────────────────────────────
 
@@ -543,7 +552,7 @@ const CombineScreen = ({ route, navigation }: any) => {
                     undefined,
                     { outfitId }
                 );
-                navigation.setParams({ editItems: undefined, outfitId: undefined });
+                navigation.setParams({ editItems: undefined, outfitId: undefined, initialItem: undefined });
                 navigation.navigate('saveSuccess', { isOutfit: true, isEdit: true });
             } else {
                 // Fetch current count to number the outfit
@@ -567,6 +576,7 @@ const CombineScreen = ({ route, navigation }: any) => {
                     undefined,
                     { outfitId: docRef.id }
                 );
+                navigation.setParams({ editItems: undefined, outfitId: undefined, initialItem: undefined });
                 navigation.navigate('saveSuccess', { isOutfit: true, isEdit: false });
             }
 

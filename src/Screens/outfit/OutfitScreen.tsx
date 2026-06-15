@@ -9,10 +9,11 @@ import {
     FlatList,
     ActivityIndicator,
     TouchableWithoutFeedback,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flame, X } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { Flame, X, ArrowLeft } from 'lucide-react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppAlert } from '../../context/AlertContext';
 import { getApp } from '../../firebase/app';
 import { getAuth } from '../../firebase/auth';
@@ -160,9 +161,32 @@ const OutfitCard = React.memo(({ item, isActive, fired, onCardPress, onDelete, o
 
 const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = ({ onOutfitPress }) => {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
     const insets = useSafeAreaInsets();
     const db = getFirestore(getApp());
     const user = getAuth().currentUser;
+
+    // Handle back redirection to Profile when navigated from Profile stats card
+    useEffect(() => {
+        if (route.params?.fromProfile) {
+            const onBackPress = () => {
+                navigation.navigate('Profile');
+                return true;
+            };
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+            return () => subscription.remove();
+        }
+    }, [route.params?.fromProfile, navigation]);
+
+    // Clear the fromProfile param on blur so subsequent entries to Outfits don't carry back behavior
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('blur', () => {
+            if (route.params?.fromProfile) {
+                navigation.setParams({ fromProfile: undefined });
+            }
+        });
+        return unsubscribe;
+    }, [navigation, route.params?.fromProfile]);
 
     const [items, setItems] = useState<OutfitItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -309,10 +333,15 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
             <SafeAreaView style={styles.safeArea}>
                 <StatusBar barStyle="dark-content" />
                 <View style={styles.header}>
-                    <Text style={styles.title}>Saved Outfits</Text>
-                    <Text style={styles.subtitle}>
-                        {loading ? 'Loading...' : `${filteredItems.length} items found`}
-                    </Text>
+                    <View style={styles.headerLeftRow}>
+
+                        <View>
+                            <Text style={styles.title}>Saved Outfits</Text>
+                            <Text style={styles.subtitle}>
+                                {loading ? 'Loading...' : `${filteredItems.length} items found`}
+                            </Text>
+                        </View>
+                    </View>
                 </View>
 
                 {/* Category Chips */}

@@ -22,6 +22,21 @@ export const styles = StyleSheet.create({
         paddingTop: 14,
         paddingBottom: 10,
     },
+    headerLeftRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    backBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#fff',
+        borderWidth: 1.5,
+        borderColor: '#E5E7EB',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     title: {
         fontSize: 20,
         fontFamily: 'InterBold',

@@ -8,9 +8,11 @@ import {
     ActivityIndicator,
     StyleSheet,
     Dimensions,
+    Pressable,
+    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Heart } from 'lucide-react-native';
+import { ChevronLeft, Heart, X, Pencil } from 'lucide-react-native';
 import { getApp } from '../../firebase/app';
 import { getFirestore, collection, query, where, onSnapshot, doc, getDoc, deleteDoc, updateDoc, increment } from '../../firebase/firestore';
 import { useAuth } from '../../context';
@@ -21,6 +23,7 @@ const COLUMN_WIDTH = (width - 40) / 2;
 const FavoriteLooksScreen = ({ navigation }: any) => {
     const [favorites, setFavorites] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
     const db = getFirestore(getApp());
     const { user } = useAuth();
@@ -86,7 +89,11 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
     }, [user, db]);
 
     const renderItem = ({ item }: { item: any }) => (
-        <View style={styles.card}>
+        <TouchableOpacity 
+            style={styles.card}
+            activeOpacity={0.88}
+            onPress={() => setSelectedItem(item)}
+        >
             <Image source={{ uri: item.imageURL }} style={styles.image} />
             <View style={styles.info}>
                 <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
@@ -99,7 +106,7 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
             >
                 <Heart size={12} color="#ef4444" fill="#ef4444" />
             </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
     );
 
     return (
@@ -110,7 +117,7 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
                     <ChevronLeft size={24} color="#1E293B" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Favorite Looks</Text>
-                <View style={{ width: 24 }} />
+                <View style={styles.headerSpacer} />
             </View>
 
             {loading ? (
@@ -129,6 +136,75 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
             ) : (
                 <View style={styles.centered}>
                     <Text style={styles.emptyText}>No favorite items yet!</Text>
+                </View>
+            )}
+
+            {selectedItem && (
+                <View style={modalStyles.overlay}>
+                    <Pressable
+                        style={StyleSheet.absoluteFill}
+                        onPress={() => setSelectedItem(null)}
+                    />
+                    <Animated.View style={modalStyles.content}>
+                        <TouchableOpacity
+                            style={modalStyles.closeBtn}
+                            onPress={() => setSelectedItem(null)}
+                        >
+                            <X size={20} color="#0F1729" />
+                        </TouchableOpacity>
+
+                        <Image
+                            source={{ uri: selectedItem.imageURL }}
+                            style={modalStyles.image}
+                            resizeMode="cover"
+                        />
+                        <View style={modalStyles.info}>
+                            <Text style={modalStyles.title}>{selectedItem.title}</Text>
+                            <Text style={modalStyles.meta}>
+                                {selectedItem.category} • {selectedItem.color}
+                            </Text>
+
+                            <View style={modalStyles.stats}>
+                                <Heart size={16} color="#ef4444" fill="#ef4444" />
+                                <Text style={modalStyles.statsText}>
+                                    {selectedItem.likeCount || 0} Likes
+                                </Text>
+                            </View>
+
+                            <View style={modalStyles.actionRow}>
+                                <TouchableOpacity
+                                    style={modalStyles.editBtn}
+                                    onPress={() => {
+                                        const item = selectedItem;
+                                        setSelectedItem(null);
+                                        try {
+                                            navigation.navigate('AddItemEditor', { initialItem: item });
+                                        } catch {
+                                            navigation.getParent()?.navigate('AddItemEditor', { initialItem: item });
+                                        }
+                                    }}
+                                >
+                                    <Pencil size={16} color="#0F1729" />
+                                    <Text style={modalStyles.editBtnText}>Edit Details</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={modalStyles.outfitBtn}
+                                    onPress={() => {
+                                        const item = selectedItem;
+                                        setSelectedItem(null);
+                                        try {
+                                            navigation.navigate('combine', { initialItem: item });
+                                        } catch {
+                                            navigation.getParent()?.navigate('combine', { initialItem: item });
+                                        }
+                                    }}
+                                >
+                                    <Text style={modalStyles.outfitBtnText}>Create Outfit</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Animated.View>
                 </View>
             )}
         </SafeAreaView>
@@ -171,5 +247,101 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.8)',
         borderRadius: 12,
         padding: 4,
+    },
+    headerSpacer: {
+        width: 24,
     }
+});
+
+const modalStyles = StyleSheet.create({
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+        zIndex: 1000,
+        elevation: 1000,
+    },
+    content: {
+        width: '100%',
+        maxWidth: 420,
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    closeBtn: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        zIndex: 10,
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        borderRadius: 20,
+        padding: 8,
+    },
+    image: {
+        width: '100%',
+        height: 280,
+        backgroundColor: '#f1f5f9',
+    },
+    info: {
+        padding: 24,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#0F1729',
+        marginBottom: 4,
+    },
+    meta: {
+        fontSize: 14,
+        color: '#64748B',
+        marginBottom: 16,
+    },
+    stats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 20,
+    },
+    statsText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0F1729',
+    },
+    actionRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    editBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        height: 52,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        backgroundColor: '#F8FAFC',
+    },
+    editBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0F1729',
+    },
+    outfitBtn: {
+        flex: 1,
+        height: 52,
+        borderRadius: 14,
+        backgroundColor: '#0F1729',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    outfitBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#fff',
+    },
 });

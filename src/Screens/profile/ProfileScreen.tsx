@@ -234,6 +234,20 @@ const ProfileScreen = () => {
         triggerFetch(true);
     }, [triggerFetch]);
 
+    const handleStatPress = (label: string) => {
+        try {
+            if (label === 'Items') {
+                navigation.navigate('bottombar', { screen: 'Closet', params: { fromProfile: true } });
+            } else if (label === 'Outfits') {
+                navigation.navigate('bottombar', { screen: 'Outfits', params: { fromProfile: true } });
+            } else if (label === 'Favorites') {
+                navigation.navigate('FavoriteLooksScreen');
+            }
+        } catch (error) {
+            console.warn('[ProfileScreen] Navigation failed:', error);
+        }
+    };
+
     const stats = [
         { label: 'Items',     value: countsLoading ? '—' : String(closetCount) },
         { label: 'Outfits',   value: countsLoading ? '—' : String(outfitCount) },
@@ -314,10 +328,15 @@ const ProfileScreen = () => {
                 {/* Stats */}
                 <View style={styles.statsRow}>
                     {stats.map((stat) => (
-                        <View key={stat.label} style={styles.statItem}>
+                        <TouchableOpacity
+                            key={stat.label}
+                            style={styles.statItem}
+                            activeOpacity={0.7}
+                            onPress={() => handleStatPress(stat.label)}
+                        >
                             <Text style={styles.statValue}>{stat.value}</Text>
                             <Text style={styles.statLabel}>{stat.label}</Text>
-                        </View>
+                        </TouchableOpacity>
                     ))}
                 </View>
 

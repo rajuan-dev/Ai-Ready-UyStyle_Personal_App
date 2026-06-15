@@ -22,6 +22,7 @@ import {
     Animated,
     Modal,
     ScrollView,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -33,9 +34,10 @@ import {
     Heart,
     X,
     Pencil,
+    ArrowLeft,
 } from 'lucide-react-native';
 import { styles } from './style';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../context';
 import { getApp } from '../../firebase/app';
 import {
@@ -170,10 +172,33 @@ const ClosetScreen = () => {
     const [viewMode,           setViewMode]           = useState<'grid' | 'list'>('grid');
 
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
 
     const app  = getApp();
     const db   = getFirestore(app);
     const { user } = useAuth();
+
+    // Handle back redirection to Profile when navigated from Profile stats card
+    useEffect(() => {
+        if (route.params?.fromProfile) {
+            const onBackPress = () => {
+                navigation.navigate('Profile');
+                return true;
+            };
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+            return () => subscription.remove();
+        }
+    }, [route.params?.fromProfile, navigation]);
+
+    // Clear the fromProfile param on blur so subsequent entries to Closet don't carry back behavior
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('blur', () => {
+            if (route.params?.fromProfile) {
+                navigation.setParams({ fromProfile: undefined });
+            }
+        });
+        return unsubscribe;
+    }, [navigation, route.params?.fromProfile]);
 
 
     useEffect(() => {
@@ -404,9 +429,12 @@ const ClosetScreen = () => {
 
             {/* Header */}
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.title}>My Closet</Text>
-                    <Text style={styles.subtitle}>{filteredItems.length} items</Text>
+                <View style={styles.headerLeftRow}>
+
+                    <View>
+                        <Text style={styles.title}>My Closet</Text>
+                        <Text style={styles.subtitle}>{filteredItems.length} items</Text>
+                    </View>
                 </View>
                 <View style={styles.headerIcons}>
                     <TouchableOpacity
