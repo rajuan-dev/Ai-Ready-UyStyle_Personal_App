@@ -3,6 +3,11 @@
     "name": "Ustyle",
     "slug": "ustyle",
     "icon": "./assets/app-icon.png",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "backgroundColor": "#FFFFFF",
+      "resizeMode": "contain"
+    },
     "plugins": [
       "./plugins/withAndroidPortability"
     ],
