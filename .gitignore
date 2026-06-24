@@ -19,6 +19,9 @@ dist/
 coverage/
 
 # Environment files
+.env
+.env.local
+.env.*
 .env.development.local
 .env.test.local
 .env.production.local
@@ -77,6 +80,18 @@ vendor/bundle/
 **/fastlane/Preview.html
 **/fastlane/screenshots
 **/fastlane/test_output
+
+# Firebase native config
+google-services.json
+GoogleService-Info.plist
+android/app/google-services.json
+ios/GoogleService-Info.plist
+
+# Apple signing / provisioning
+*.mobileprovision
+*.p8
+*.p12
+*.cer
 
 # React Native bundle artifacts
 *.jsbundle

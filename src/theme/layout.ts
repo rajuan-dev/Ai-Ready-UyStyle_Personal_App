@@ -7,8 +7,8 @@ export const getFloatingTabBarMetrics = (bottomInset: number) => {
 
   return {
     safeBottom,
-    height: FLOATING_TAB_BAR_HEIGHT + bottomInset,
-    paddingBottom: Math.max(bottomInset, 10),
+    height: FLOATING_TAB_BAR_HEIGHT,
+    paddingBottom: 10,
   };
 };
 

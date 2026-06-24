@@ -1,97 +1,148 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Ustyle
 
-# Getting Started
+Ustyle is a React Native mobile app for managing a personal digital closet, creating outfits, saving favorites, and receiving in-app recommendations and reminders. The project uses Expo prebuild with React Native and Firebase services for authentication, data storage, and media storage.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Tech stack
 
-## Step 1: Start Metro
+- React Native `0.83.6`
+- Expo `~55.0.26`
+- Firebase JS SDK `12.10.0`
+- React Navigation
+- AsyncStorage
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Main features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- Email/password authentication with email verification and password reset
+- User profile creation and style preference storage
+- Closet item creation, editing, deletion, and image upload
+- Outfit composition, preview, save flow, and favorite looks
+- Firestore-backed notifications
+- Profile photo upload and account settings
+- AI chat screen present in navigation
+
+Note: an AI chat screen exists in the app, but the repository does not currently show an external AI provider integration or `.env`-based AI API configuration. That backend dependency is still to be confirmed.
+
+## Repository status
+
+The repository is connected to GitHub remotes:
+
+- `origin`: `git@github.com:iam-rajuan/Ai-Ready-UyStyle_Personal_App.git`
+- `alt`: `https://github.com/rajuan-dev/Ai-Ready-UyStyle_Personal_App.git`
+
+Tracked source/config files already present in Git include:
+
+- `README.md`
+- `package.json`
+- `app.json`
+- `eas.json`
+- `firestore.rules`
+- `src/firebase/client.ts`
+- `google-services.json`
+- `GoogleService-Info.plist`
+
+Important limitations:
+
+- The native `android/` directory is ignored by `.gitignore` and is not currently backed up in GitHub as tracked source.
+- No `ios/` directory is present in the repository.
+- The top-level Firebase native config files are currently tracked in Git, which is not ideal for long-term credential hygiene even though they are required for native builds.
+
+## Local setup
+
+### Requirements
+
+- Node.js `>= 22.11.0` from `package.json`
+- npm
+- Android Studio / Android SDK for Android builds
+- Xcode for iOS builds on macOS only
+- Expo CLI via `npx`
+
+### Install dependencies
 
 ```sh
-# Using npm
+npm install
+```
+
+The repo runs a `postinstall` patch script that modifies the local Expo CLI package to improve Android device ABI handling on this project. Re-run `npm install` if `node_modules` is removed.
+
+### Run locally
+
+Start Metro:
+
+```sh
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
+Run Android:
 
 ```sh
-# Using npm
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+`npm run android` calls `scripts/run-android-shortpath.ps1`, which:
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+- detects the Android SDK location
+- writes `android/local.properties`
+- clears stale Android build folders under `node_modules`
+- removes conflicting installs from connected devices
+- runs `npx expo run:android`
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+You can also run:
 
 ```sh
-bundle install
+npx expo run:android
 ```
 
-Then, and every time you update your native dependencies, run:
+Run iOS on macOS:
 
 ```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+This project uses `expo run:ios` for iOS native execution.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Expo / native workflow notes
 
-## Step 3: Modify your app
+- This is an Expo prebuild-style React Native app, not an Expo Go app.
+- The repository contains Expo config in `app.json` and EAS config in `eas.json`.
+- A custom Expo config plugin at `plugins/withAndroidPortability.js` writes `android/local.properties` and redirects Windows node-module Android build output away from locked `node_modules` paths.
+- Because `android/` is ignored, native Android project files are treated as generated/local rather than canonical tracked source.
 
-Now that you have successfully run the app, let's make changes!
+## Firebase usage summary
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Firebase setup is documented in `FIREBASE_SETUP.md`. Based on the current codebase:
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+- Firebase Authentication is used for sign-up, sign-in, sign-out, email verification, password reset, and password change.
+- Firestore is used for user profiles, closet items, outfits, likes, notifications, categories, and preferences.
+- Firebase Storage is used for image uploads and shared outfit HTML uploads.
+- Firebase Analytics is not implemented in the current repository.
+- Firebase Crashlytics is not implemented in the current repository.
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+## Environment configuration
 
-## Congratulations! :tada:
+Environment details are documented in `ENVIRONMENT.md`.
 
-You've successfully run and modified your React Native App. :partying_face:
+Current state:
 
-### Now what?
+- No `.env` loader is configured in the app code.
+- Firebase web config is currently hardcoded in `src/firebase/client.ts`.
+- Native Firebase config files are referenced from `app.json`.
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+## Build and deployment
 
-# Troubleshooting
+Build and release notes are documented in `DEPLOYMENT.md`.
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Useful commands:
 
-# Learn More
+```sh
+eas build --platform android --profile preview
+eas build --platform android --profile production
+eas build --platform ios --profile preview
+eas build --platform ios --profile production
+eas submit --platform ios --profile production
+```
 
-To learn more about React Native, take a look at the following resources:
+## Security notes
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- Do not commit Apple certificates, `.p8`, `.p12`, provisioning profiles, private API keys, passwords, or private `.env` files.
+- The repository currently tracks `google-services.json` and `GoogleService-Info.plist`. That should be reviewed and cleaned up if those files are intended to stay private.
+- `.gitignore` has been updated to protect future commits, but ignore rules do not automatically remove files that are already tracked.
