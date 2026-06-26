@@ -61,6 +61,8 @@ const menuItems = [
     { label: 'Notifications',    danger: false, screen: 'notification'    },
     { label: 'Account Settings', danger: false, screen: 'accountsettings' },
     { label: 'Privacy',          danger: false, screen: 'privacypolicy'   },
+    { label: 'Terms & Conditions', danger: false, screen: 'termsandconditions' },
+    { label: 'About Us',         danger: false, screen: 'aboutus'         },
     { label: 'Help',             danger: false, screen: 'help'            },
     { label: 'Logout',           danger: true,  screen: null              },
 ];

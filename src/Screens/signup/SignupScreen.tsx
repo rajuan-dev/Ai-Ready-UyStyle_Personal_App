@@ -248,8 +248,19 @@ const SignupScreen = ({ navigation }: any) => {
 
             <Text style={styles.termsText2}>
               By creating an account, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text> and Privacy
-              Policy.
+              <Text
+                style={styles.termsLink}
+                onPress={() => navigation.navigate('termsandconditions')}
+              >
+                Terms of Service
+              </Text>{' '}
+              and{' '}
+              <Text
+                style={styles.termsLink}
+                onPress={() => navigation.navigate('privacypolicy')}
+              >
+                Privacy Policy
+              </Text>.
             </Text>
 
             <Text style={styles.termsText}>

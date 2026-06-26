@@ -8,7 +8,7 @@ import {
     StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ShieldCheck, Lock, EyeOff, Bell, MessageCircle } from 'lucide-react-native';
+import { ArrowLeft, ShieldCheck, Lock, EyeOff, Bell, MessageCircle, Trash2 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const PolicySection = ({ title, content, icon: Icon }: any) => (
@@ -47,10 +47,10 @@ const PrivacyPolicyScreen = () => {
                 <View style={styles.introBox}>
                     <ShieldCheck size={40} color="#2869BD" strokeWidth={1.5} />
                     <Text style={styles.introTitle}>Your Privacy Matters</Text>
-                    <Text style={styles.lastUpdated}>Last Updated: October 2023</Text>
+                    <Text style={styles.lastUpdated}>Last Updated: June 2026</Text>
                     <Text style={styles.introText}>
                         We value your trust and are committed to protecting your personal data.
-                        This policy explains how we collect, use, and safeguard your information.
+                        This policy explains how we collect, use, disclose, and safeguard your information when you use Ustyle.
                     </Text>
                 </View>
 
@@ -58,25 +58,31 @@ const PrivacyPolicyScreen = () => {
                 <PolicySection
                     icon={Lock}
                     title="Data Collection"
-                    content="We collect information you provide directly to us, such as when you create an account, upload photos of your clothing, or communicate with our style AI. This includes your name, email, and wardrobe data."
+                    content="We collect information you provide directly to us, such as when you create an account, upload photos of your wardrobe items (clothing, shoes, and accessories), or communicate with our style AI. This includes your name, email address, password, style preferences, and wardrobe images."
                 />
 
                 <PolicySection
                     icon={EyeOff}
                     title="How We Use Data"
-                    content="Your wardrobe data is used solely to provide personalized outfit recommendations. We do not sell your personal data to third parties. Our AI analyzes your style preferences to improve your experience."
+                    content="Your wardrobe data is used solely to organize your closet and provide personalized outfit recommendations. We do not sell your personal data to third parties. Our AI analyzes your style choices and clothing details to improve your overall in-app experience."
                 />
 
                 <PolicySection
                     icon={Bell}
-                    title="Third Party Sharing"
-                    content="We may share anonymized, aggregated data with fashion partners to improve our service offerings. We never share personally identifiable information without your explicit consent."
+                    title="Third Party Services"
+                    content="We use industry-leading third-party services, primarily Google Firebase, for user authentication, database management, and media storage. These services process your data strictly under security guidelines and will never use your information for external purposes without consent."
                 />
 
                 <PolicySection
                     icon={ShieldCheck}
                     title="Data Security"
-                    content="We implement industry-standard security measures to protect your data from unauthorized access, including encryption and secure socket layer technology."
+                    content="We implement robust, industry-standard administrative, technical, and physical security measures to protect your personal information. All communications and files are encrypted in transit and at rest using modern secure socket layers and storage protocols."
+                />
+
+                <PolicySection
+                    icon={Trash2}
+                    title="Data Retention & Deletion"
+                    content="We retain your personal data and wardrobe images only as long as your account is active. You have full control over your data. You can delete individual closet items or permanently delete your entire account and all associated wardrobe data at any time under Account Settings or by reaching support at support@ustyle.com."
                 />
 
                 {/* Contact Footer */}

@@ -15,7 +15,7 @@ import {
     Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronRight, User, Mail, Lock, Camera, Bell } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, User, Mail, Lock, Camera, Bell, Trash2 } from 'lucide-react-native';
 import {
     requestNotificationPermission,
     scheduleDailyReminder,
@@ -28,8 +28,8 @@ import {
     ImagePickerResponse,
 } from 'react-native-image-picker';
 import { getApp } from '../firebase/app';
-import { getAuth } from '../firebase/auth';
-import { getFirestore, doc, onSnapshot, updateDoc } from '../firebase/firestore';
+import { getAuth, deleteUser } from '../firebase/auth';
+import { getFirestore, doc, onSnapshot, updateDoc, deleteDoc } from '../firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from '../firebase/storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -314,6 +314,47 @@ const AccountSettingsScreen = () => {
         navigation.navigate('ChangePassword'),
     [navigation]);
 
+    const handleDeleteAccount = useCallback(() => {
+        Alert.alert(
+            'Delete Account',
+            'Are you sure you want to permanently delete your account? This action is permanent and will delete all your outfits, wardrobe items, and personal settings from our database. It cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete Permanently',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const currentUser = auth.currentUser;
+                        if (!currentUser) return;
+                        setLoading(true);
+                        try {
+                            const uid = currentUser.uid;
+                            // 1. Delete user profile document from Firestore
+                            await deleteDoc(doc(db, 'users', uid));
+                            
+                            // 2. Delete the user from Firebase Authentication
+                            await deleteUser(currentUser);
+                            
+                            Alert.alert('Account Deleted', 'Your account and data have been successfully deleted.');
+                        } catch (error: any) {
+                            console.error('[AccountSettings] Delete account error:', error);
+                            if (error.code === 'auth/requires-recent-login') {
+                                Alert.alert(
+                                    'Re-authentication Required',
+                                    'For your security, deleting your account requires a recent login. Please log out, sign back in, and try again.'
+                                );
+                            } else {
+                                Alert.alert('Error', error.message || 'Failed to delete account. Please try again.');
+                            }
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    }, [auth, db, navigation]);
+
     // ── Loading ────────────────────────────────────────────────────────────────
     if (loading) {
         return (
@@ -443,6 +484,20 @@ const AccountSettingsScreen = () => {
                             label="Change Password"
                             onPress={handleChangePassword}
                             isLast
+                        />
+                    </View>
+                </View>
+
+                {/* ── Danger Zone ── */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>DANGER ZONE</Text>
+                    <View style={styles.card}>
+                        <SettingRow
+                            icon={Trash2}
+                            label="Delete Account"
+                            onPress={handleDeleteAccount}
+                            isLast
+                            isDanger
                         />
                     </View>
                 </View>

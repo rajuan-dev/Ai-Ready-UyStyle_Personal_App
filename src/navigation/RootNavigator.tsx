@@ -70,6 +70,8 @@ import NotificationScreen    from '../settings/NotificationScreen';
 import AccountSettingsScreen from '../settings/AccountSettingsScreen';
 import PrivacyPolicyScreen   from '../settings/PrivacyPolicyScreen';
 import HelpScreen            from '../settings/HelpScreen';
+import AboutUsScreen         from '../settings/AboutUsScreen';
+import TermsAndConditionsScreen from '../settings/TermsAndConditionsScreen';
 import ChangePasswordScreen from '../Screens/profile/Changepassword/ChangePasswordScreen';
 import AIChatScreen from '../Screens/AIChatScreen/AIChatScreen';
 import FavoriteLooksScreen from '../Screens/FavoriteLooksScreen/FavoriteLooksScreen';
@@ -120,6 +122,8 @@ const AppStack = () => (
     <Stack.Screen name="notification"    component={NotificationScreen} />
     <Stack.Screen name="accountsettings" component={AccountSettingsScreen} />
     <Stack.Screen name="privacypolicy"   component={PrivacyPolicyScreen} />
+    <Stack.Screen name="termsandconditions" component={TermsAndConditionsScreen} />
+    <Stack.Screen name="aboutus"         component={AboutUsScreen} />
     <Stack.Screen name="help"            component={HelpScreen} />
     <Stack.Screen name="FavoriteLooksScreen"component={FavoriteLooksScreen} />
     <Stack.Screen name="Recentitems"component={Recentitems} />
