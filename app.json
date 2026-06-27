@@ -9,7 +9,10 @@
       "resizeMode": "contain"
     },
     "plugins": [
-      "./plugins/withAndroidPortability"
+      "./plugins/withAndroidPortability",
+      "@react-native-firebase/app",
+      "@react-native-firebase/analytics",
+      "@react-native-firebase/crashlytics"
     ],
     "version": "1.0.0",
     "android": {

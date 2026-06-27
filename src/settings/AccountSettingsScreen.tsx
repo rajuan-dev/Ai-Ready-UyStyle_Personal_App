@@ -31,6 +31,7 @@ import { getApp } from '../firebase/app';
 import { getAuth, deleteUser } from '../firebase/auth';
 import { getFirestore, doc, onSnapshot, updateDoc, deleteDoc } from '../firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from '../firebase/storage';
+import { recordCrashlyticsError } from '../services';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -214,6 +215,7 @@ const AccountSettingsScreen = () => {
                 });
             });
         } catch (e: any) {
+            recordCrashlyticsError(e, 'account_settings');
             Alert.alert('Upload failed', e.message);
         } finally {
             setPhotoUploading(false);

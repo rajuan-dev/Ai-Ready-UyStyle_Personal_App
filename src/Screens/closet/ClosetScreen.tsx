@@ -54,6 +54,11 @@ import {
     updateDoc,
 } from '../../firebase/firestore';
 import { getTabScreenBottomPadding } from '../../theme/layout';
+import {
+    logFavoriteLook,
+    logUnfavoriteLook,
+    recordCrashlyticsError,
+} from '../../services';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PAGE_SIZE  = 10;
@@ -343,9 +348,13 @@ const ClosetScreen = () => {
             if (isLiked) {
                 await deleteDoc(likeRef);
                 await updateDoc(itemRef, { likeCount: increment(-1) });
+                // ── Analytics
+                logUnfavoriteLook();
             } else {
                 await setDoc(likeRef, { userId: user.uid, itemId, createdAt: new Date(), imageURL });
                 await updateDoc(itemRef, { likeCount: increment(1) });
+                // ── Analytics
+                logFavoriteLook();
             }
         } catch (err) {
             // Rollback on failure
@@ -357,6 +366,7 @@ const ClosetScreen = () => {
                 ),
             );
             console.error('Like error:', err);
+            recordCrashlyticsError(err, 'toggle_like_closet');
         }
     }, [user, likedIds, db, items]);
 

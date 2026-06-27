@@ -28,6 +28,7 @@ import {
     limit,
 } from '../../firebase/firestore';
 import { getTabScreenBottomPadding } from '../../theme/layout';
+import { recordCrashlyticsError } from '../../services';
 
 // ── Firebase refs (singleton — created once, not every render) ──
 const app  = getApp();
@@ -217,6 +218,7 @@ const ProfileScreen = () => {
                 timestamp: Date.now(),
             };
         } catch (e: any) {
+            recordCrashlyticsError(e, 'profile_load');
             console.log('[Profile] fetch error:', e?.message || e);
         } finally {
             setLoading(false);

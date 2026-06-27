@@ -13,6 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Check } from 'lucide-react-native';
 import { useAppAlert } from '../../context/AlertContext';
 import { addNotification } from '../../utils/notifications';
+import {
+    logUpdateStylePreferences,
+    logCrashlytics,
+    recordCrashlyticsError,
+} from '../../services';
 
 // ─── Firebase Modular v22 imports ─────────────────────────────────────────────
 import { getApp } from '../../firebase/app';
@@ -205,6 +210,14 @@ const StylePreferenceScreen = ({ navigation }: any) => {
 
             invalidateProfileCache(); // Force refresh on profile screen
 
+            // ── Analytics: style preferences saved
+            logUpdateStylePreferences(
+                selectedStyles.length,
+                selectedOccasions.length,
+                selectedColors.length,
+            );
+            logCrashlytics('style_preferences_saved');
+
             setSaved(true);
             setTimeout(() => {
                 setSaved(false);
@@ -213,6 +226,7 @@ const StylePreferenceScreen = ({ navigation }: any) => {
 
         } catch (error: any) {
             console.error('Error saving preferences:', error);
+            recordCrashlyticsError(error, 'update_style_preferences');
             Alert.alert(
                 'Save Failed',
                 error?.message ?? 'Something went wrong. Please try again.',

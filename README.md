@@ -114,8 +114,8 @@ Firebase setup is documented in `FIREBASE_SETUP.md`. Based on the current codeba
 - Firebase Authentication is used for sign-up, sign-in, sign-out, email verification, password reset, and password change.
 - Firestore is used for user profiles, closet items, outfits, likes, notifications, categories, and preferences.
 - Firebase Storage is used for image uploads and shared outfit HTML uploads.
-- Firebase Analytics is not implemented in the current repository.
-- Firebase Crashlytics is not implemented in the current repository.
+- Firebase Analytics is implemented via `@react-native-firebase/analytics`, with typed MVP event wrappers in `src/services/analytics.ts` (onboarding, closet, outfit builder, share, favorites, style preferences). No PII is logged.
+- Firebase Crashlytics is implemented via `@react-native-firebase/crashlytics`, with a wrapper in `src/services/crashlytics.ts` for user identification (UID only), breadcrumbs, and non-fatal error recording across key catch blocks. Both are native modules and require a native rebuild (`expo run` / EAS) — see `FIREBASE_SETUP.md`.
 
 ## Environment configuration
 

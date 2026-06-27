@@ -10,6 +10,7 @@ import {
     updateDoc,
     serverTimestamp,
 } from '../firebase/firestore';
+import { recordCrashlyticsError } from '../services';
 
 export type NotificationType = 'recommendation' | 'system' | 'reminder' | 'info';
 
@@ -38,6 +39,7 @@ export const addNotification = async (
             createdAt: serverTimestamp(),
         });
     } catch (error) {
+        recordCrashlyticsError(error, 'notifications_util');
         console.warn('[Notification Utility] Error adding notification:', error);
     }
 };
@@ -89,6 +91,7 @@ export const upsertNotification = async (
             });
         }
     } catch (error) {
+        recordCrashlyticsError(error, 'notifications_util');
         console.warn('[Notification Utility] Error upserting notification:', error);
     }
 };

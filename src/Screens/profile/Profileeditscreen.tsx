@@ -275,6 +275,7 @@ import {
 } from '../../firebase/storage';
 import { invalidateProfileCache } from './ProfileScreen';
 import { useAppAlert } from '../../context/AlertContext';
+import { recordCrashlyticsError } from '../../services';
 
 // ── Validation ───────────────────────────────────────────
 const isValidEmail = (val: string) =>
@@ -443,6 +444,7 @@ const ProfileEditScreen = ({ navigation }: any) => {
                 navigation.goBack();
             });
         } catch (error: any) {
+            recordCrashlyticsError(error, 'profile_edit');
             showError('Error', error.message);
         } finally {
             setSaving(false);

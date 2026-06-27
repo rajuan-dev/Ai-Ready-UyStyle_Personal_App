@@ -21,6 +21,7 @@ import {
     reauthenticateWithCredential,
     updatePassword,
 } from '../../../firebase/auth';
+import { recordCrashlyticsError } from '../../../services';
 
 interface FormState {
     currentPassword: string;
@@ -161,6 +162,7 @@ const ChangePasswordScreen = () => {
             } else if (code === 'auth/weak-password') {
                 setErrors({ newPassword: 'Password is too weak. Choose a stronger one.' });
             } else {
+                recordCrashlyticsError(err, 'change_password');
                 setErrors({ general: 'Something went wrong. Please try again.' });
             }
         } finally {

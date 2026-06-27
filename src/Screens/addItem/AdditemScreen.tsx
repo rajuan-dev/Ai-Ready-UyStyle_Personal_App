@@ -40,6 +40,11 @@ import { addNotification } from '../../utils/notifications';
 import { invalidateFavoriteLooksCache } from '../FavoriteLooksScreen/FavoriteLooksScreen';
 import { invalidateClosetCache } from '../closet/ClosetScreen';
 import {
+  logAddClosetItem,
+  logCrashlytics,
+  recordCrashlyticsError,
+} from '../../services';
+import {
     getFirestore,
     collection,
     addDoc,
@@ -446,6 +451,9 @@ const AdditemScreen = () => {
                     imageURL: finalImageURL,
                     createdAt: serverTimestamp(),
                 });
+                // ── Analytics: new closet item saved
+                logAddClosetItem(category);
+                logCrashlytics(`closet_item_saved category=${category}`);
                 invalidateFavoriteLooksCache(docRef.id);
                 invalidateClosetCache();
                 await addNotification(
@@ -463,6 +471,7 @@ const AdditemScreen = () => {
                 });
             }
         } catch (e: any) {
+            recordCrashlyticsError(e, 'add_closet_item');
             showError('Error', e.message);
         } finally {
             setUploading(false); setUploadPct(0);

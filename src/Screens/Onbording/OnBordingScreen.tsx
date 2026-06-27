@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { logOnboardingComplete } from '../../services';
 
 const { width, height } = Dimensions.get('window');
 
@@ -54,6 +55,7 @@ export default function OnBoardingScreen() {
                 animated: true,
             });
         } else {
+            logOnboardingComplete();
             navigation.replace('signin');
         }
     };

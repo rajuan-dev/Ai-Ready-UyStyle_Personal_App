@@ -9,6 +9,12 @@ import {
   getPendingRegistration,
   setHasAccountFlag,
 } from '../auth/authStorage';
+import {
+  setCrashlyticsUser,
+  clearCrashlyticsUser,
+  recordCrashlyticsError,
+  setCrashlyticsAttribute,
+} from '../services';
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
@@ -84,11 +90,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await setHasAccountFlag(true);
         setHasAccount(true);
 
+        // Associate crash reports with the authenticated user (UID only — no PII)
+        setCrashlyticsUser(firebaseUser.uid);
+        setCrashlyticsAttribute('email_verified', 'true');
+
         try {
           await ensureUserProfile(firebaseUser);
         } catch (error) {
           console.error('[AuthContext] Failed to ensure user profile:', error);
+          recordCrashlyticsError(error, 'ensure_user_profile');
         }
+      } else {
+        // User is signed out or unverified — clear Crashlytics identity
+        clearCrashlyticsUser();
       }
 
       setLoading(false);
@@ -111,10 +125,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(refreshedUser);
 
     if (refreshedUser?.emailVerified) {
+      setCrashlyticsUser(refreshedUser.uid);
       try {
         await ensureUserProfile(refreshedUser);
       } catch (error) {
         console.error('[AuthContext] Failed to ensure user profile after refresh:', error);
+        recordCrashlyticsError(error, 'ensure_user_profile_refresh');
       }
     }
 

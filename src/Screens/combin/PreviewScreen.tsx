@@ -277,6 +277,15 @@ import {
 } from '../../firebase/firestore';
 import { addNotification } from '../../utils/notifications';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from '../../firebase/storage';
+import {
+    logWearThis,
+    logSaveOutfit,
+    logShareLook,
+    logBuildAnother,
+    logTryDifferentCombinations,
+    logCrashlytics,
+    recordCrashlyticsError,
+} from '../../services';
 
 const { width } = Dimensions.get('window');
 const H_PAD = 20;
@@ -534,6 +543,7 @@ const PreviewScreen = ({ route, navigation }: any) => {
                     navigation.goBack();
                 } catch (e) {
                     console.warn(e);
+                    recordCrashlyticsError(e, 'delete_outfit');
                     showError('Error', 'Failed to delete outfit. Please try again.');
                 }
             }
@@ -601,6 +611,11 @@ const PreviewScreen = ({ route, navigation }: any) => {
                     createdAt: serverTimestamp(),
                 });
 
+                // ── Analytics: outfit confirmed (already existed)
+                logWearThis(items.length);
+                logSaveOutfit(items.length, true);
+                logCrashlytics('outfit_confirmed_existing_preview');
+
                 await addNotification(
                     user.uid,
                     'Outfit Saved',
@@ -626,6 +641,11 @@ const PreviewScreen = ({ route, navigation }: any) => {
                     createdAt: serverTimestamp(),
                 });
 
+                // ── Analytics: new outfit confirmed from preview
+                logWearThis(items.length);
+                logSaveOutfit(items.length, false);
+                logCrashlytics('outfit_confirmed_from_preview');
+
                 await addNotification(
                     user.uid,
                     'Outfit Created',
@@ -639,6 +659,7 @@ const PreviewScreen = ({ route, navigation }: any) => {
             }
         } catch (err) {
             console.warn('[ConfirmLook] Save error:', err);
+            recordCrashlyticsError(err, 'confirm_look');
             showError('Error', 'Save failed. Please try again.');
         } finally {
             setSaving(false);
@@ -693,12 +714,15 @@ const PreviewScreen = ({ route, navigation }: any) => {
                     title: 'USTYLE Look',
                 });
             }
+            // ── Analytics: look was shared
+            logShareLook(items.length);
         } catch (error: any) {
             const isDismissed = error?.message?.includes('User did not share') || 
                                 error?.message?.includes('dismissed') || 
                                 error?.message?.includes('cancelled');
             if (!isDismissed) {
                 console.warn('[Share] error:', error);
+                recordCrashlyticsError(error, 'share_look');
                 Alert.alert('Share Failed', 'Could not share the outfit. Please try again.');
             }
         } finally {
@@ -905,7 +929,12 @@ const PreviewScreen = ({ route, navigation }: any) => {
                 <View style={st.bottomBar}>
                     <TouchableOpacity
                         style={[st.backOutfitBtn, saving && st.backOutfitBtnDisabled]}
-                        onPress={() => navigation.navigate('combine', { editItems: items })}
+                        onPress={() => {
+                            // ── Analytics: user returning to builder to try different items
+                            logBuildAnother();
+                            logTryDifferentCombinations();
+                            navigation.navigate('combine', { editItems: items });
+                        }}
                         activeOpacity={0.8}
                         disabled={saving}
                     >

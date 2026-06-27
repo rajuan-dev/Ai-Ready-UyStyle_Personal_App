@@ -16,6 +16,7 @@ import { getApp } from '../../firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from '../../firebase/auth';
 import { getPendingRegistration, setPendingRegistration } from '../../auth/authStorage';
 import { styles } from './style';
+import { recordCrashlyticsError } from '../../services';
 
 const EyeIcon = ({ visible }: { visible: boolean }) => (
   <View>
@@ -114,6 +115,8 @@ const SignupScreen = ({ navigation }: any) => {
       } else if (error.code === 'auth/network-request-failed') {
         Alert.alert('Error', 'Network error. Please check your internet connection and try again.');
       } else {
+        // Unexpected error — record as non-fatal in Crashlytics
+        recordCrashlyticsError(error, 'sign_up');
         Alert.alert('Error', error.message);
       }
     } finally {

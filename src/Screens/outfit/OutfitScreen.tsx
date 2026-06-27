@@ -39,6 +39,7 @@ import {
 import { styles } from './style';
 import { getTabScreenBottomPadding } from '../../theme/layout';
 import { OutfitCollage } from '../../components/OutfitCollage';
+import { recordCrashlyticsError } from '../../services';
 
 // --- Types ---
 type OutfitItem = {
@@ -287,6 +288,7 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                     showSuccess('Deleted', `${item.title} has been removed.`);
                 } catch (e) {
                     console.warn(e);
+                    recordCrashlyticsError(e, 'outfit_delete');
                     showError('Error', 'Failed to delete outfit. Please try again.');
                 }
             }
@@ -330,6 +332,7 @@ const OutfitScreen: React.FC<{ onOutfitPress?: (item: OutfitItem) => void }> = (
                 ),
             );
             console.warn('[Outfit fire]', err);
+            recordCrashlyticsError(err, 'outfit_fire_toggle');
         }
     }, [db, firedIds, user]);
 

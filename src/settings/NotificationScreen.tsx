@@ -17,6 +17,7 @@ import { ArrowLeft, Sparkles, Package, CheckCircle2, Info, Bell, X, Pencil, Hear
 import { useNavigation } from '@react-navigation/native';
 import { getApp } from '../firebase/app';
 import { getAuth } from '../firebase/auth';
+import { recordCrashlyticsError } from '../services';
 import {
     getFirestore,
     collection,
@@ -438,6 +439,7 @@ const NotificationScreen = () => {
             // Case 5: Final fallback to Home if no direct screen or ID mapping succeeds
             (navigation as any).navigate('bottombar', { screen: 'Home' });
         } catch (err) {
+            recordCrashlyticsError(err, 'notification_settings');
             console.warn('[Notifications] Error handling press:', err);
             showError('Error', 'An error occurred while loading. Please try again.');
         } finally {

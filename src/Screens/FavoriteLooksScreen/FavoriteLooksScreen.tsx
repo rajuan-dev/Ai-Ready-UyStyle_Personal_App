@@ -16,6 +16,10 @@ import { ChevronLeft, Heart, X, Pencil } from 'lucide-react-native';
 import { getApp } from '../../firebase/app';
 import { getFirestore, collection, query, where, onSnapshot, doc, getDoc, deleteDoc, updateDoc, increment } from '../../firebase/firestore';
 import { useAuth } from '../../context';
+import {
+    logUnfavoriteLook,
+    recordCrashlyticsError,
+} from '../../services';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 40) / 2;
@@ -104,8 +108,11 @@ const FavoriteLooksScreen = ({ navigation }: any) => {
             await updateDoc(itemRef, {
                 likeCount: increment(-1),
             });
+            // ── Analytics
+            logUnfavoriteLook();
         } catch (error) {
             console.error("Error unfavoriting:", error);
+            recordCrashlyticsError(error, 'unfavorite_look');
         }
     }, [user, db]);
 

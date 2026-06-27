@@ -38,6 +38,12 @@ import { getAuth } from '../../firebase/auth';
 import { addNotification } from '../../utils/notifications';
 import { invalidateOutfitsCache } from '../outfit/OutfitScreen';
 import {
+    logGenerateOutfit,
+    logSaveOutfit,
+    logCrashlytics,
+    recordCrashlyticsError,
+} from '../../services';
+import {
     getFirestore,
     collection,
     query,
@@ -422,6 +428,7 @@ const CombineScreen = ({ route, navigation }: any) => {
             setShowModal(false);
         } catch (err) {
             console.warn(err);
+            recordCrashlyticsError(err, 'add_outfit_slot');
             Alert.alert('Error', 'Could not create slot. Try again.');
         } finally {
             setCreating(false);
@@ -492,6 +499,7 @@ const CombineScreen = ({ route, navigation }: any) => {
 
                         } catch (err) {
                             console.warn(err);
+                            recordCrashlyticsError(err, 'delete_outfit_slot');
                             Alert.alert('Error', 'Could not delete slot. Try again.');
                         } finally {
                             setDeletingSlotId(null);
@@ -545,6 +553,9 @@ const CombineScreen = ({ route, navigation }: any) => {
                     itemDetails,  // { [itemId]: ItemDetail }
                     updatedAt:   serverTimestamp(),
                 });
+                // ── Analytics: outfit updated
+                logSaveOutfit(selectedCount, true);
+                logCrashlytics('outfit_saved_edit_combine');
                 invalidateOutfitsCache();
                 await addNotification(
                     user.uid,
@@ -570,6 +581,9 @@ const CombineScreen = ({ route, navigation }: any) => {
                     itemDetails,  // { [itemId]: ItemDetail }
                     createdAt:   serverTimestamp(),
                 });
+                // ── Analytics: new outfit saved
+                logSaveOutfit(selectedCount, false);
+                logCrashlytics('outfit_saved_new_combine');
                 invalidateOutfitsCache();
                 await addNotification(
                     user.uid,
@@ -585,6 +599,7 @@ const CombineScreen = ({ route, navigation }: any) => {
 
         } catch (err) {
             console.warn(err);
+            recordCrashlyticsError(err, 'save_look_combine');
             Alert.alert('Error', 'Save failed. Please try again.');
         } finally {
             setSaving(false);
@@ -853,11 +868,13 @@ const CombineScreen = ({ route, navigation }: any) => {
             <View style={s.bottomBar}>
                 <TouchableOpacity
                     style={[s.previewBtn, selectedCount === 0 && s.btnOff]}
-                    onPress={() =>
+                    onPress={() => {
+                        // ── Analytics: user previewing their composed outfit
+                        logGenerateOutfit(selectedCount);
                         navigation.navigate('preview', {
                             items: Object.values(slotMap).filter(Boolean) as ClosetItem[],
-                        })
-                    }
+                        });
+                    }}
                     disabled={selectedCount === 0}
                     activeOpacity={0.8}
                 >
