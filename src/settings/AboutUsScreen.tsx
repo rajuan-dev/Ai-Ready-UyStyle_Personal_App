@@ -6,10 +6,13 @@ import {
     TouchableOpacity,
     StyleSheet,
     StatusBar,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Sparkles, Shirt, ShieldCheck, Heart } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Shirt, ShieldCheck, Heart, Mail } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+
+const SUPPORT_EMAIL = 'pat@ustylefashion.com';
 
 interface AboutSectionProps {
     title: string;
@@ -79,6 +82,24 @@ const AboutUsScreen = () => {
                     title="AI Styling Assistant"
                     content="Our styling engine analyzes your preferences, color choices, and occasions to recommend custom-tailored outfits. It is designed to inspire your daily outfit choices directly from your existing wardrobe."
                 />
+
+                {/* Contact Us */}
+                <View style={styles.contactCard}>
+                    <Text style={styles.contactTitle}>Contact Us</Text>
+                    <Text style={styles.contactSub}>
+                        Have questions, feedback, or need support? Reach out — we respond within 24 hours.
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.contactRow}
+                        activeOpacity={0.7}
+                        onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=UStyle%20Inquiry`)}
+                    >
+                        <View style={styles.contactIconBg}>
+                            <Mail size={18} color="#2869BD" />
+                        </View>
+                        <Text style={styles.contactEmail}>{SUPPORT_EMAIL}</Text>
+                    </TouchableOpacity>
+                </View>
 
                 {/* Developer / Commitment Card */}
                 <View style={styles.footerCard}>
@@ -211,6 +232,51 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontFamily: 'InterRegular',
         color: '#EBF1FB',
+    },
+    // Contact Card
+    contactCard: {
+        marginHorizontal: 24,
+        marginBottom: 12,
+        padding: 20,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    contactTitle: {
+        fontSize: 16,
+        fontFamily: 'InterBold',
+        color: '#0F1729',
+        marginBottom: 8,
+    },
+    contactSub: {
+        fontSize: 13,
+        fontFamily: 'InterRegular',
+        color: '#64748B',
+        lineHeight: 20,
+        marginBottom: 16,
+    },
+    contactRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: '#EBF1FB',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+    },
+    contactIconBg: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    contactEmail: {
+        fontSize: 14,
+        fontFamily: 'InterSemiBold',
+        color: '#2869BD',
     },
 });
 

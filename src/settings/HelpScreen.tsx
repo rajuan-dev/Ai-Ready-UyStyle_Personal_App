@@ -8,6 +8,7 @@ import {
     StatusBar,
     TextInput,
     LayoutAnimation,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
+const SUPPORT_EMAIL = 'pat@ustylefashion.com';
 
 
 const faqs = [
@@ -44,8 +46,8 @@ const faqs = [
     },
 ];
 
-const SupportCard = ({ icon: Icon, title, sub, color }: any) => (
-    <TouchableOpacity style={styles.supportCard} activeOpacity={0.7}>
+const SupportCard = ({ icon: Icon, title, sub, color, onPress }: any) => (
+    <TouchableOpacity style={styles.supportCard} activeOpacity={0.7} onPress={onPress}>
         <View style={[styles.supportIconContainer, { backgroundColor: color + '15' }]}>
             <Icon size={24} color={color} />
         </View>
@@ -96,9 +98,10 @@ const HelpScreen = () => {
                 <View style={styles.supportGrid}>
                     <SupportCard
                         icon={Mail}
-                        title="Email"
-                        sub="Within 24h"
+                        title="Email Support"
+                        sub={SUPPORT_EMAIL}
                         color="#10B981"
+                        onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=UStyle%20Support`)}
                     />
                 </View>
 
