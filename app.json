@@ -12,7 +12,20 @@
       "./plugins/withAndroidPortability",
       "@react-native-firebase/app",
       "@react-native-firebase/analytics",
-      "@react-native-firebase/crashlytics"
+      "@react-native-firebase/crashlytics",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAnalytics",
+              "RNFBCrashlytics"
+            ]
+          }
+        }
+      ]
     ],
     "version": "1.0.0",
     "android": {
@@ -33,7 +46,7 @@
     "ios": {
       "icon": "./assets/app-icon.png",
       "bundleIdentifier": "com.pbell.ustyle.dev",
-      "buildNumber": "25",
+      "buildNumber": "28",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "This app requires camera access to take photos of your clothing items and profile pictures.",

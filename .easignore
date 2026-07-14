@@ -1,0 +1,103 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / package managers
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Expo / Metro
+.expo/
+.metro-health-check*
+web-build/
+dist/
+
+# Tests / coverage
+coverage/
+
+# Environment files
+.env
+.env.local
+.env.*
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor / IDE
+.idea/
+.vscode/
+*.code-workspace
+*.iml
+
+# Android local/build artifacts
+android/
+.gradle/
+.kotlin/
+.cxx/
+local.properties
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+*.hprof
+*.keystore
+*.jks
+!android/app/debug.keystore
+
+# iOS / Xcode local/build artifacts
+ios/
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xccheckout
+*.xcuserstate
+*.moved-aside
+*.hmap
+*.ipa
+*.xcarchive
+**/.xcode.env.local
+ios/build/
+ios/DerivedData/
+ios/**/xcuserdata/
+
+# CocoaPods / Ruby local dependencies
+ios/Pods/
+vendor/bundle/
+.bundle/
+
+# Fastlane artifacts
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# Firebase native config
+android/app/google-services.json
+ios/GoogleService-Info.plist
+
+# Apple signing / provisioning
+*.mobileprovision
+*.p8
+*.p12
+*.cer
+
+# React Native bundle artifacts
+*.jsbundle
+config.bat
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+
+# EAS needs these root-level Firebase config files in the uploaded archive.
+!google-services.json
+!GoogleService-Info.plist
