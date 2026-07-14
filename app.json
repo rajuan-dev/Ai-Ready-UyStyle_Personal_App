@@ -29,7 +29,7 @@
     ],
     "version": "1.0.0",
     "android": {
-      "package": "com.rajuan.dev.personal_stylist_app",
+      "package": "com.pbell.ustyle.dev",
       "versionCode": 18,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
