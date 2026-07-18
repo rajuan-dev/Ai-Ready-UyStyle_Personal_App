@@ -30,7 +30,7 @@
     "version": "1.0.0",
     "android": {
       "package": "com.pbell.ustyle.dev",
-      "versionCode": 18,
+      "versionCode": 19,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
