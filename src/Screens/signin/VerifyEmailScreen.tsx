@@ -61,7 +61,6 @@ const VerifyEmailScreen = ({ route, navigation }: any) => {
       const refreshedUser = await refreshUser();
 
       if (refreshedUser?.emailVerified) {
-        Alert.alert('Success', 'Your email has been successfully verified.');
         return;
       }
 

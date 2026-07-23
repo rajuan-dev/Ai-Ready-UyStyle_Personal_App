@@ -125,7 +125,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(refreshedUser);
 
     if (refreshedUser?.emailVerified) {
+      await setHasAccountFlag(true);
+      setHasAccount(true);
       setCrashlyticsUser(refreshedUser.uid);
+      setCrashlyticsAttribute('email_verified', 'true');
       try {
         await ensureUserProfile(refreshedUser);
       } catch (error) {
