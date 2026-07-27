@@ -30,7 +30,7 @@
     "version": "1.0.0",
     "android": {
       "package": "com.pbell.ustyle.dev",
-      "versionCode": 22,
+      "versionCode": 23,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
@@ -46,7 +46,7 @@
     "ios": {
       "icon": "./assets/app-icon.png",
       "bundleIdentifier": "com.pbell.ustyle.dev",
-      "buildNumber": "29",
+      "buildNumber": "30",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "This app requires camera access to take photos of your clothing items and profile pictures.",
