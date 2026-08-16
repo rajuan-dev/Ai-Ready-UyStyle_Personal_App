@@ -12,7 +12,14 @@
  *    reachable in production App Store / Play Store binaries.
  */
 
-import crashlytics from '@react-native-firebase/crashlytics';
+import {
+  crash,
+  getCrashlytics,
+  log,
+  recordError,
+  setAttribute,
+  setUserId,
+} from '@react-native-firebase/crashlytics';
 
 // ─── Internal helper ──────────────────────────────────────────────────────────
 
@@ -31,12 +38,12 @@ const safe = async (fn: () => void | Promise<void>): Promise<void> => {
  * Only pass the UID — never email, name, or other PII.
  */
 export const setCrashlyticsUser = (uid: string): void => {
-  safe(() => crashlytics().setUserId(uid));
+  safe(() => setUserId(getCrashlytics(), uid));
 };
 
 /** Clear the user identity from Crashlytics on sign-out. */
 export const clearCrashlyticsUser = (): void => {
-  safe(() => crashlytics().setUserId(''));
+  safe(() => setUserId(getCrashlytics(), ''));
 };
 
 // ─── Breadcrumb logging ───────────────────────────────────────────────────────
@@ -46,7 +53,7 @@ export const clearCrashlyticsUser = (): void => {
  * Keep messages concise and free of PII.
  */
 export const logCrashlytics = (message: string): void => {
-  safe(() => crashlytics().log(message));
+  safe(() => log(getCrashlytics(), message));
 };
 
 // ─── Error recording ──────────────────────────────────────────────────────────
@@ -65,11 +72,11 @@ export const recordCrashlyticsError = (
   context?: string,
 ): void => {
   safe(async () => {
-    const instance = crashlytics();
+    const instance = getCrashlytics();
 
     // Attach the context label as a custom key if provided
     if (context) {
-      await instance.setAttribute('error_context', context);
+      await setAttribute(instance, 'error_context', context);
     }
 
     // Crashlytics requires a native Error object with a stack trace
@@ -78,7 +85,7 @@ export const recordCrashlyticsError = (
         ? error
         : new Error(typeof error === 'string' ? error : 'Unknown error');
 
-    await instance.recordError(nativeError);
+    recordError(instance, nativeError);
   });
 };
 
@@ -89,7 +96,7 @@ export const recordCrashlyticsError = (
  * Do not use for PII.
  */
 export const setCrashlyticsAttribute = (key: string, value: string): void => {
-  safe(() => crashlytics().setAttribute(key, value));
+  safe(() => setAttribute(getCrashlytics(), key, value));
 };
 
 // ─── Test crash (DEV ONLY) ────────────────────────────────────────────────────
@@ -109,5 +116,5 @@ export const triggerTestCrash = (): void => {
     return;
   }
   // This call intentionally crashes the app for verification purposes
-  crashlytics().crash();
+  crash(getCrashlytics());
 };

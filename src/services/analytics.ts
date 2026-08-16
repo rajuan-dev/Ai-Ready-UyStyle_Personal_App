@@ -11,7 +11,11 @@
  *  - User identification uses Firebase UID only (not email or name).
  */
 
-import analytics from '@react-native-firebase/analytics';
+import {
+  getAnalytics,
+  logEvent,
+  setUserId,
+} from '@react-native-firebase/analytics';
 
 // ─── Internal helper ──────────────────────────────────────────────────────────
 
@@ -27,19 +31,19 @@ const safe = async (fn: () => Promise<void>): Promise<void> => {
 
 /** Set the Firebase Analytics user ID. Only the UID is used — never email or name. */
 export const setAnalyticsUser = (uid: string): void => {
-  safe(() => analytics().setUserId(uid));
+  safe(() => setUserId(getAnalytics(), uid));
 };
 
 /** Clear the Analytics user ID on sign-out. */
 export const clearAnalyticsUser = (): void => {
-  safe(() => analytics().setUserId(null as any));
+  safe(() => setUserId(getAnalytics(), null));
 };
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
 
 /** Fired when the user completes the last onboarding slide and proceeds to sign-in. */
 export const logOnboardingComplete = (): void => {
-  safe(() => analytics().logEvent('onboarding_complete'));
+  safe(() => logEvent(getAnalytics(), 'onboarding_complete'));
 };
 
 // ─── Closet ───────────────────────────────────────────────────────────────────
@@ -50,7 +54,7 @@ export const logOnboardingComplete = (): void => {
  */
 export const logAddClosetItem = (category: string): void => {
   safe(() =>
-    analytics().logEvent('add_closet_item', {
+    logEvent(getAnalytics(), 'add_closet_item', {
       item_category: category,
     }),
   );
@@ -65,7 +69,7 @@ export const logAddClosetItem = (category: string): void => {
  */
 export const logGenerateOutfit = (itemCount: number): void => {
   safe(() =>
-    analytics().logEvent('generate_outfit', {
+    logEvent(getAnalytics(), 'generate_outfit', {
       item_count: itemCount,
     }),
   );
@@ -76,7 +80,7 @@ export const logGenerateOutfit = (itemCount: number): void => {
  * to rearrange their outfit combination.
  */
 export const logBuildAnother = (): void => {
-  safe(() => analytics().logEvent('build_another'));
+  safe(() => logEvent(getAnalytics(), 'build_another'));
 };
 
 /**
@@ -84,7 +88,7 @@ export const logBuildAnother = (): void => {
  * from the preview screen using the Edit Outfit flow.
  */
 export const logTryDifferentCombinations = (): void => {
-  safe(() => analytics().logEvent('try_different_combinations'));
+  safe(() => logEvent(getAnalytics(), 'try_different_combinations'));
 };
 
 // ─── Preview / Save ───────────────────────────────────────────────────────────
@@ -95,7 +99,7 @@ export const logTryDifferentCombinations = (): void => {
  */
 export const logWearThis = (itemCount: number): void => {
   safe(() =>
-    analytics().logEvent('wear_this', {
+    logEvent(getAnalytics(), 'wear_this', {
       item_count: itemCount,
     }),
   );
@@ -108,7 +112,7 @@ export const logWearThis = (itemCount: number): void => {
  */
 export const logSaveOutfit = (itemCount: number, isEdit: boolean): void => {
   safe(() =>
-    analytics().logEvent('save_outfit', {
+    logEvent(getAnalytics(), 'save_outfit', {
       item_count: itemCount,
       is_edit: isEdit ? 1 : 0,
     }),
@@ -123,7 +127,7 @@ export const logSaveOutfit = (itemCount: number, isEdit: boolean): void => {
  */
 export const logShareLook = (itemCount: number): void => {
   safe(() =>
-    analytics().logEvent('share_look', {
+    logEvent(getAnalytics(), 'share_look', {
       item_count: itemCount,
     }),
   );
@@ -133,12 +137,12 @@ export const logShareLook = (itemCount: number): void => {
 
 /** Fired when the user hearts / favorites a closet item. */
 export const logFavoriteLook = (): void => {
-  safe(() => analytics().logEvent('favorite_look'));
+  safe(() => logEvent(getAnalytics(), 'favorite_look'));
 };
 
 /** Fired when the user un-hearts / removes a closet item from favorites. */
 export const logUnfavoriteLook = (): void => {
-  safe(() => analytics().logEvent('unfavorite_look'));
+  safe(() => logEvent(getAnalytics(), 'unfavorite_look'));
 };
 
 // ─── Style preferences ────────────────────────────────────────────────────────
@@ -155,7 +159,7 @@ export const logUpdateStylePreferences = (
   colorCount: number,
 ): void => {
   safe(() =>
-    analytics().logEvent('update_style_preferences', {
+    logEvent(getAnalytics(), 'update_style_preferences', {
       style_count:    styleCount,
       occasion_count: occasionCount,
       color_count:    colorCount,
