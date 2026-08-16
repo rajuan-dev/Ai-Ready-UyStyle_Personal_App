@@ -19,16 +19,12 @@ dist/
 coverage/
 
 # Environment files
-.env
-.env.local
-.env.*
 .env.development.local
 .env.test.local
 .env.production.local
 
 # Editor / IDE
 .idea/
-.vscode/
 *.code-workspace
 *.iml
 
