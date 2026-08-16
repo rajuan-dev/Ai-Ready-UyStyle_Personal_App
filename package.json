@@ -8,7 +8,7 @@
     "ios": "expo run:ios",
     "lint": "eslint .",
     "postinstall": "node ./scripts/patch-expo-cli.js",
-    "start": "react-native start",
+    "start": "node init && react-native start",
     "test": "jest"
   },
   "dependencies": {
