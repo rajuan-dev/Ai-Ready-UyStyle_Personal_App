@@ -34,6 +34,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+    ArrowLeft,
     Shuffle,
     Plus,
     Shirt,
@@ -698,6 +699,14 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
     }, [navigation, app]);
 
+    const handleGoBack = useCallback(() => {
+        if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
+            navigation.goBack();
+        } else if (navigation && typeof navigation.navigate === 'function') {
+            navigation.navigate('bottombar', { screen: 'Home' });
+        }
+    }, [navigation]);
+
 
     /* ── State ── */
     const [closetItems,  setClosetItems]  = useState<ClosetItem[]>([]);
@@ -798,9 +807,21 @@ const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
             {/* ── Header ── */}
             <Animated.View style={[s.header, { opacity: headerFade }]}>
-                <View>
-                    <Text style={s.headerTitle}>Quick Fit</Text>
-                    <Text style={s.headerSub}>{statsLine}</Text>
+                <View style={s.headerLeftGroup}>
+                    <TouchableOpacity
+                        onPress={handleGoBack}
+                        style={s.backBtn}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        accessibilityLabel="Go back"
+                        accessibilityRole="button"
+                    >
+                        <ArrowLeft size={22} color="#0F172A" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={s.headerTitle}>Quick Fit</Text>
+                        <Text style={s.headerSub}>{statsLine}</Text>
+                    </View>
                 </View>
                 <TouchableOpacity
                     style={[s.genBtn, generating && s.genBtnDisabled]}
@@ -920,6 +941,19 @@ const s = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop:        14,
         paddingBottom:     10,
+    },
+    headerLeftGroup: {
+        flexDirection: 'row',
+        alignItems:    'center',
+        gap:           10,
+    },
+    backBtn: {
+        width:          36,
+        height:         36,
+        borderRadius:   18,
+        justifyContent: 'center',
+        alignItems:     'center',
+        marginLeft:     -6,
     },
     headerTitle: {
         fontSize:      24,

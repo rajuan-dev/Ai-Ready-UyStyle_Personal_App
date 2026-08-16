@@ -114,7 +114,7 @@ const AppStack = () => (
     <Stack.Screen name="bottombar"       component={BottomBar} />
     <Stack.Screen name="profileedit"     component={ProfileEditScreen} />
     <Stack.Screen name="ChangePassword"     component={ChangePasswordScreen} />
-    <Stack.Screen name="AIChatScreen"     component={AIChatScreen} />
+    <Stack.Screen name="AIChatScreen"     component={AIChatScreen} options={{ gestureEnabled: true }} />
     <Stack.Screen name="preference"      component={StylePreferenceScreen} />
     <Stack.Screen name="combine"         component={CombineScreen} />
     <Stack.Screen name="preview"         component={PreviewScreen} />
